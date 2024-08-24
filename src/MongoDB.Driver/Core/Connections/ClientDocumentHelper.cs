@@ -284,7 +284,8 @@ namespace MongoDB.Driver.Core.Connections
             {
                 osType = "Linux";
             }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                     || RuntimeInformation.IsOSPlatform(OSPlatform.Create("MACCATALYST")))
             {
                 osType = "macOS";
             }
