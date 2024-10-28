@@ -14,9 +14,15 @@
 */
 
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using FluentAssertions;
+using MongoDB.Bson.IO;
+using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Options;
 using MongoDB.Bson.Serialization.Serializers;
+using MongoDB.TestHelpers.XunitExtensions;
 using Xunit;
 
 namespace MongoDB.Bson.Tests.Serialization.Serializers
@@ -24,14 +30,29 @@ namespace MongoDB.Bson.Tests.Serialization.Serializers
     public class Decimal128SerializerTests
     {
         [Fact]
-        public void Equals_derived_should_return_false()
+        public void Constructor_with_no_arguments_should_return_expected_result()
         {
-            var x = new Decimal128Serializer();
-            var y = new DerivedFromDecimal128Serializer();
+            var subject = new Decimal128Serializer();
 
-            var result = x.Equals(y);
+            subject.Representation.Should().Be(BsonType.Decimal128);
+        }
 
-            result.Should().Be(false);
+        [Theory]
+        [ParameterAttributeData]
+        public void Constructor_with_representation_should_return_expected_result(
+            [Values(BsonType.Decimal128, BsonType.Int32, BsonType.Int64, BsonType.String, BsonType.Double)] BsonType representation)
+        {
+            var subject = new Decimal128Serializer(representation);
+
+            subject.Representation.Should().Be(representation);
+        }
+
+        [Fact]
+        public void Constructor_with_representation_should_throw_when_representation_is_invalid()
+        {
+            var exception = Record.Exception(() => new Decimal128Serializer(BsonType.Null));
+
+            exception.Should().BeOfType<ArgumentException>();
         }
 
         [Fact]
@@ -108,8 +129,45 @@ namespace MongoDB.Bson.Tests.Serialization.Serializers
             result.Should().Be(0);
         }
 
-        public class DerivedFromDecimal128Serializer : Decimal128Serializer
+        public static IEnumerable<object[]> SerializeSpecialValuesData()
         {
+            return from bsonType in new[] { BsonType.Int64, BsonType.Int32 }
+                from val in new [] { Decimal128.PositiveInfinity, Decimal128.NegativeInfinity, Decimal128.QNaN }
+                select new object[] { bsonType, val };
+        }
+
+        [Theory]
+        [MemberData(nameof(SerializeSpecialValuesData))]
+        public void Serialize_NaN_or_Infinity_to_integral_should_throw(BsonType representation, Decimal128 value)
+        {
+            var subject = new Decimal128Serializer(representation);
+
+            using var textWriter = new StringWriter();
+            using var writer = new JsonWriter(textWriter);
+
+            var context = BsonSerializationContext.CreateRoot(writer);
+            writer.WriteStartDocument();
+            writer.WriteName("x");
+
+            var exception = Record.Exception(() => subject.Serialize(context, value));
+            exception.Should().BeOfType<OverflowException>();
+        }
+
+        [Theory]
+        [ParameterAttributeData]
+        public void WithRepresentation_should_return_expected_result(
+            [Values(BsonType.Decimal128, BsonType.Int32, BsonType.Int64, BsonType.String, BsonType.Double)] BsonType oldRepresentation,
+            [Values(BsonType.Decimal128, BsonType.Int32, BsonType.Int64, BsonType.String, BsonType.Double)] BsonType newRepresentation)
+        {
+            var subject = new Decimal128Serializer(oldRepresentation);
+
+            var result = subject.WithRepresentation(newRepresentation);
+
+            result.Representation.Should().Be(newRepresentation);
+            if (newRepresentation == oldRepresentation)
+            {
+                result.Should().BeSameAs(subject);
+            }
         }
     }
 }

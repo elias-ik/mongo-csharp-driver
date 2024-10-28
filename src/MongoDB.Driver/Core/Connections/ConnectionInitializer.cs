@@ -20,7 +20,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Serializers;
-using MongoDB.Driver.Core.Authentication;
+using MongoDB.Driver.Authentication;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Misc;
 using MongoDB.Driver.Core.WireProtocol;
@@ -179,8 +179,7 @@ namespace MongoDB.Driver.Core.Connections
                 throw new InvalidOperationException();
             }
 
-            var authenticatorFactory = connection.Settings.AuthenticatorFactories.SingleOrDefault();
-            return authenticatorFactory?.Create();
+            return connection.Settings.AuthenticatorFactory?.Create();
         }
 
         private ConnectionDescription UpdateConnectionIdWithServerValue(ConnectionDescription description, BsonDocument getLastErrorResult)

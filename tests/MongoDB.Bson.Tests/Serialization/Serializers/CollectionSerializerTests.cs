@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using MongoDB.Bson.IO;
@@ -49,7 +50,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         public void TestNull()
         {
             var obj = new T { L = null, IC = null, IE = null, IL = null, Q = null, S = null };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "null";
             var expected = "{ 'L' : #R, 'IC' : #R, 'IE' : #R, 'IL' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -70,7 +71,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         {
             var list = new ArrayList();
             var obj = new T { L = list, IC = list, IE = list, IL = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "[]";
             var expected = "{ 'L' : #R, 'IC' : #R, 'IE' : #R, 'IL' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -91,7 +92,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         {
             var list = new ArrayList(new[] { new C { P = "x" } });
             var obj = new T { L = list, IC = list, IE = list, IL = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "[{ '_t' : 'CollectionSerializers.C', 'P' : 'x' }]";
             var expected = "{ 'L' : #R, 'IC' : #R, 'IE' : #R, 'IL' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -112,7 +113,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         {
             var list = new ArrayList(new[] { 1 });
             var obj = new T { L = list, IC = list, IE = list, IL = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "[1]";
             var expected = "{ 'L' : #R, 'IC' : #R, 'IE' : #R, 'IL' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -133,7 +134,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         {
             var list = new ArrayList(new[] { "x" });
             var obj = new T { L = list, IC = list, IE = list, IL = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "['x']";
             var expected = "{ 'L' : #R, 'IC' : #R, 'IE' : #R, 'IL' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -154,7 +155,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         {
             var list = new ArrayList(new[] { new C { P = "x" }, new C { P = "y" } });
             var obj = new T { L = list, IC = list, IE = list, IL = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "[{ '_t' : 'CollectionSerializers.C', 'P' : 'x' }, { '_t' : 'CollectionSerializers.C', 'P' : 'y' }]";
             var expected = "{ 'L' : #R, 'IC' : #R, 'IE' : #R, 'IL' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -175,7 +176,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         {
             var list = new ArrayList(new[] { 1, 2 });
             var obj = new T { L = list, IC = list, IE = list, IL = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "[1, 2]";
             var expected = "{ 'L' : #R, 'IC' : #R, 'IE' : #R, 'IL' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -196,7 +197,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         {
             var list = new ArrayList(new[] { "x", "y" });
             var obj = new T { L = list, IC = list, IE = list, IL = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "['x', 'y']";
             var expected = "{ 'L' : #R, 'IC' : #R, 'IE' : #R, 'IL' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -212,29 +213,13 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
         }
 
-        [Theory]
-        [ParameterAttributeData]
-        [ResetGuidModeAfterTest]
-        public void TestMixedPrimitiveTypes(
-            [ClassValues(typeof(GuidModeValues))] GuidMode mode)
+        [Fact]
+        public void TestMixedPrimitiveTypes()
         {
-            mode.Set();
-
-#pragma warning disable 618
             var dateTime = DateTime.SpecifyKind(new DateTime(2010, 1, 1, 11, 22, 33), DateTimeKind.Utc);
-            var isoDate = string.Format("ISODate(\"{0}\")", dateTime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ"));
+            var isoDate = string.Format("ISODate(\"{0}\")", dateTime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ", CultureInfo.InvariantCulture));
             var guid = Guid.Empty;
             string expectedGuidJson = null;
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                switch (BsonDefaults.GuidRepresentation)
-                {
-                    case GuidRepresentation.CSharpLegacy: expectedGuidJson = "CSUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.JavaLegacy: expectedGuidJson = "JUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.PythonLegacy: expectedGuidJson = "PYUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.Standard: expectedGuidJson = "UUID('00000000-0000-0000-0000-000000000000')"; break;
-                }
-            }
             var objectId = ObjectId.Empty;
             ArrayList list;
             if (expectedGuidJson == null)
@@ -246,7 +231,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
                 list = new ArrayList(new object[] { true, dateTime, 1.5, 1, 2L, guid, objectId, "x" });
             }
             var obj = new T { L = list, IC = list, IE = list, IL = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson(new JsonWriterSettings());
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             string rep;
             if (expectedGuidJson == null)
             {
@@ -271,7 +256,6 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
             Assert.IsType<ArrayList>(rehydrated.IE);
             Assert.IsType<ArrayList>(rehydrated.IL);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson(writerSettings: new BsonBinaryWriterSettings())));
-#pragma warning restore 618
         }
     }
 
@@ -289,7 +273,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         public void TestNull()
         {
             var obj = new T { L = null, Q = null, S = null };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "null";
             var expected = "{ 'L' : #R, 'Q' : #R, 'S' : #R }".Replace("#R", rep).Replace("'", "\"");
             Assert.Equal(expected, json);
@@ -306,7 +290,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         public void TestEmpty()
         {
             var obj = new T { L = new ArrayList(), Q = new Queue(), S = new Stack() };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "[]";
 #if NET472
             var arrayListDiscriminator = "System.Collections.ArrayList";
@@ -338,7 +322,7 @@ namespace MongoDB.Bson.Tests.Serialization.CollectionSerializers
         {
             var list = new ArrayList(new[] { 1 });
             var obj = new T { L = list, Q = new Queue(list), S = new Stack(list) };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var rep = "[1]";
 #if NET472
             var arrayListDiscriminator = "System.Collections.ArrayList";

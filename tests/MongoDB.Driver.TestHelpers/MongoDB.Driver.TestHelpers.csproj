@@ -2,7 +2,6 @@
   <Import Project="..\BuildProps\Tests.Build.props" />
 
   <PropertyGroup>
-    <TargetFrameworks>$(StandardTargetFrameworks)</TargetFrameworks>
     <CodeAnalysisRuleSet>..\..\MongoDBTest.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
 
@@ -19,7 +18,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MongoDB.Bson\MongoDB.Bson.csproj" />
+    <ProjectReference Include="..\..\src\MongoDB.Driver.Authentication.AWS\MongoDB.Driver.Authentication.AWS.csproj" />
     <ProjectReference Include="..\..\src\MongoDB.Driver\MongoDB.Driver.csproj" />
+    <ProjectReference Include="..\..\src\MongoDB.Driver.Encryption\MongoDB.Driver.Encryption.csproj" />
     <ProjectReference Include="..\MongoDB.Bson.TestHelpers\MongoDB.Bson.TestHelpers.csproj" />
   </ItemGroup>
 

@@ -17,6 +17,7 @@ using System;
 using System.Linq;
 using FluentAssertions;
 using MongoDB.Bson;
+using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using Xunit;
@@ -44,7 +45,7 @@ namespace MongoDB.Bson.Tests.Serialization
         {
             var bsonDocument = new BsonDocument { { "D", new BsonDocument { { "x", 1 }, { "y", 2 } } } };
             var bson = bsonDocument.ToBson();
-            var json = bsonDocument.ToJson();
+            var json = bsonDocument.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
 
             using (var c = BsonSerializer.Deserialize<C>(bson))
             {
@@ -58,19 +59,8 @@ namespace MongoDB.Bson.Tests.Serialization
 
             using (var c = BsonSerializer.Deserialize<C>(json))
             {
-                Assert.Equal(json, c.ToJson());
+                Assert.Equal(json, c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell }));
             }
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new RawBsonDocumentSerializer();
-            var y = new DerivedFromRawBsonDocumentSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -123,10 +113,6 @@ namespace MongoDB.Bson.Tests.Serialization
             var result = x.GetHashCode();
 
             result.Should().Be(0);
-        }
-
-        public class DerivedFromRawBsonDocumentSerializer : RawBsonDocumentSerializer
-        {
         }
     }
 }

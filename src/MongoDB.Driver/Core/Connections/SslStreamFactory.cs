@@ -1,4 +1,4 @@
-/* Copyright 2013-present MongoDB Inc.
+/* Copyright 2010-present MongoDB Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
 * limitations under the License.
 */
 
-using System;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -26,12 +25,20 @@ using MongoDB.Driver.Core.Misc;
 
 namespace MongoDB.Driver.Core.Connections
 {
-    internal class SslStreamFactory : IStreamFactory
+    /// <summary>
+    /// Represents a factory for an ssl stream.
+    /// </summary>
+    public class SslStreamFactory : IStreamFactory
     {
         // fields
         private readonly SslStreamSettings _settings;
         private readonly IStreamFactory _wrapped;
 
+        /// <summary>
+        /// Constructs an Ssl Stream Factory.
+        /// </summary>
+        /// <param name="settings">The SslStreamSettings.</param>
+        /// <param name="wrapped">The underlying stream factory.</param>
         public SslStreamFactory(SslStreamSettings settings, IStreamFactory wrapped)
         {
             _settings = Ensure.IsNotNull(settings, nameof(settings));
@@ -39,6 +46,7 @@ namespace MongoDB.Driver.Core.Connections
         }
 
         // public methods
+        /// <inheritdoc />
         public Stream CreateStream(EndPoint endPoint, CancellationToken cancellationToken)
         {
             var stream = _wrapped.CreateStream(endPoint, cancellationToken);
@@ -57,6 +65,7 @@ namespace MongoDB.Driver.Core.Connections
             }
         }
 
+        /// <inheritdoc />
         public async Task<Stream> CreateStreamAsync(EndPoint endPoint, CancellationToken cancellationToken)
         {
             var stream = await _wrapped.CreateStreamAsync(endPoint, cancellationToken).ConfigureAwait(false);

@@ -80,24 +80,18 @@ namespace MongoDB.Driver.Tests
 
             void Ping(bool tlsInsecure)
             {
-                using (var client = CreateDisposableMongoClient(tlsInsecure))
+                using (var client = CreateMongoClient(tlsInsecure))
                 {
                     client.GetDatabase("admin").RunCommand<BsonDocument>(new BsonDocument("ping", 1));
-#pragma warning disable CS0618 // Type or member is obsolete
-                    if (client.Settings.SdamLogFilename != null)
-                    { // Log file needs a bit of time to be written before we dispose the client
-                        System.Threading.Thread.Sleep(2000);
-                    }
-#pragma warning restore CS0618 // Type or member is obsolete
                 }
             }
         }
 
         // private methods
-        /* We can't use DriverTestConfiguration.CreateDisposableClient because that results in a call to check
+        /* We can't use DriverTestConfiguration.CreateMongoClient because that results in a call to check
          * the cluster type, which fails because a connection cannot be established to the mongod when testing
          * the revoked certificate case */
-        private DisposableMongoClient CreateDisposableMongoClient(bool tlsInsecure)
+        private IMongoClient CreateMongoClient(bool tlsInsecure)
         {
             var settings = DriverTestConfiguration.GetClientSettings().Clone();
             settings.SslSettings = new SslSettings { CheckCertificateRevocation = true };
@@ -110,11 +104,10 @@ namespace MongoDB.Driver.Tests
              * result in the driver being unable to perform OCSP endpoint checking in time, causing a
              * ServerSelectionTimeout that does include a certificate revocation status error message. */
             settings.ServerSelectionTimeout = TimeSpan.FromSeconds(5 * 2); // must be > 5s
-            // settings.SdamLogFilename = @"C:\temp\sdam" + $"{tlsInsecure}.log";
 
             settings.LoggingSettings = LoggingSettings;
 
-            return new DisposableMongoClient(new MongoClient(settings), CreateLogger<DisposableMongoClient>());
+            return new MongoClient(settings);
         }
 
         private bool GetShouldSucceed()

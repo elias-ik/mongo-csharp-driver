@@ -13,25 +13,21 @@
 * limitations under the License.
 */
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using FluentAssertions;
+using MongoDB.Bson.IO;
+using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
+using MongoDB.TestHelpers.XunitExtensions;
 using Xunit;
 
 namespace MongoDB.Bson.Tests.Serialization.Serializers
 {
     public class DoubleSerializerTests
     {
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new DoubleSerializer();
-            var y = new DerivedFromDoubleSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
-        }
-
         [Fact]
         public void Equals_null_should_return_false()
         {
@@ -95,8 +91,22 @@ namespace MongoDB.Bson.Tests.Serialization.Serializers
             result.Should().Be(0);
         }
 
-        public class DerivedFromDoubleSerializer : DoubleSerializer
+        [Theory]
+        [ParameterAttributeData]
+        public void Serialize_NaN_or_Infinity_to_integral_should_throw([Values(BsonType.Int64, BsonType.Int32)] BsonType representation,
+            [Values(double.PositiveInfinity, double.NegativeInfinity, double.NaN)] double value)
         {
+            var subject = new DoubleSerializer(representation);
+
+            using var textWriter = new StringWriter();
+            using var writer = new JsonWriter(textWriter);
+
+            var context = BsonSerializationContext.CreateRoot(writer);
+            writer.WriteStartDocument();
+            writer.WriteName("x");
+
+            var exception = Record.Exception(() => subject.Serialize(context, value));
+            exception.Should().BeOfType<OverflowException>();
         }
     }
 }

@@ -18,8 +18,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Security;
-using MongoDB.Driver.Core.Authentication;
-using MongoDB.Driver.Core.Authentication.Oidc;
+using MongoDB.Driver.Authentication;
+using MongoDB.Driver.Authentication.Oidc;
 using MongoDB.Driver.Core.Misc;
 using MongoDB.Shared;
 
@@ -28,7 +28,6 @@ namespace MongoDB.Driver
     /// <summary>
     /// Credential to access a MongoDB database.
     /// </summary>
-    [Serializable]
     public class MongoCredential : IEquatable<MongoCredential>
     {
         // private fields
@@ -229,42 +228,6 @@ namespace MongoDB.Driver
         }
 
         /// <summary>
-        /// Creates a credential used with MONGODB-CR.
-        /// </summary>
-        /// <param name="databaseName">Name of the database.</param>
-        /// <param name="username">The username.</param>
-        /// <param name="password">The password.</param>
-        /// <returns>A credential for MONGODB-CR.</returns>
-        [Obsolete("MONGODB-CR was replaced by SCRAM-SHA-1 in MongoDB 3.0, and is now deprecated.")]
-        public static MongoCredential CreateMongoCRCredential(string databaseName, string username, string password)
-        {
-            return FromComponents(
-                mechanism: "MONGODB-CR",
-                source: null,
-                databaseName,
-                username,
-                new PasswordEvidence(password));
-        }
-
-        /// <summary>
-        /// Creates a credential used with MONGODB-CR.
-        /// </summary>
-        /// <param name="databaseName">Name of the database.</param>
-        /// <param name="username">The username.</param>
-        /// <param name="password">The password.</param>
-        /// <returns>A credential for MONGODB-CR.</returns>
-        [Obsolete("MONGODB-CR was replaced by SCRAM-SHA-1 in MongoDB 3.0, and is now deprecated.")]
-        public static MongoCredential CreateMongoCRCredential(string databaseName, string username, SecureString password)
-        {
-            return FromComponents(
-                mechanism: "MONGODB-CR",
-                source: null,
-                databaseName,
-                username,
-                new PasswordEvidence(password));
-        }
-
-        /// <summary>
         /// Creates a credential used with MONGODB-OIDC.
         /// </summary>
         /// <param name="callback">The OIDC callback.</param>
@@ -418,93 +381,21 @@ namespace MongoDB.Driver
         }
 
         // internal methods
-        internal IAuthenticator ToAuthenticator(IReadOnlyList<EndPoint> endPoints, ServerApi serverApi, IEnvironmentVariableProvider environmentVariableProvider = null)
+        internal IAuthenticator ToAuthenticator(IReadOnlyList<EndPoint> endPoints, ServerApi serverApi)
         {
-            var passwordEvidence = _evidence as PasswordEvidence;
-            if (passwordEvidence != null)
+            if (_mechanism == MongoDBX509Authenticator.MechanismName && _identity.Source == "$external" && _evidence is ExternalEvidence)
             {
-                var insecurePassword = SecureStringHelper.ToInsecureString(passwordEvidence.SecurePassword);
-                var credential = new UsernamePasswordCredential(
-                    _identity.Source,
-                    _identity.Username,
-                    insecurePassword);
-
-                if (_mechanism == null)
-                {
-                    return new DefaultAuthenticator(credential, serverApi);
-                }
-                if (_mechanism == ScramSha1Authenticator.MechanismName)
-                {
-                    return new ScramSha1Authenticator(credential, serverApi);
-                }
-                if (_mechanism == ScramSha256Authenticator.MechanismName)
-                {
-                    return new ScramSha256Authenticator(credential, serverApi);
-                }
-                if (_mechanism == PlainAuthenticator.MechanismName)
-                {
-                    return new PlainAuthenticator(credential, serverApi);
-                }
-                if (_mechanism == GssapiAuthenticator.MechanismName)
-                {
-                    return new GssapiAuthenticator(
-                        credential,
-                        _mechanismProperties.Select(x => new KeyValuePair<string, string>(x.Key, x.Value.ToString())),
-                        serverApi);
-                }
-                if (_mechanism == MongoAWSAuthenticator.MechanismName)
-                {
-                    return new MongoAWSAuthenticator(
-                        credential,
-                        _mechanismProperties.Select(x => new KeyValuePair<string, string>(x.Key, x.Value.ToString())),
-                        serverApi);
-                }
-                if (_mechanism == MongoOidcAuthenticator.MechanismName)
-                {
-                    throw new NotSupportedException("OIDC authenticator cannot be constructed with password.");
-                }
+                return new MongoDBX509Authenticator(_identity.Username, serverApi);
             }
-            else if (_identity.Source == "$external" && _evidence is ExternalEvidence)
-            {
-                if (_mechanism == MongoDBX509Authenticator.MechanismName)
-                {
-                    return new MongoDBX509Authenticator(_identity.Username, serverApi);
-                }
-                if (_mechanism == GssapiAuthenticator.MechanismName)
-                {
-                    return new GssapiAuthenticator(
-                        _identity.Username,
-                        _mechanismProperties.Select(x => new KeyValuePair<string, string>(x.Key, x.Value.ToString())),
-                        serverApi);
-                }
-                if (_mechanism == MongoAWSAuthenticator.MechanismName)
-                {
-                    return new MongoAWSAuthenticator(
-                        _identity.Username,
-                        _mechanismProperties.Select(x => new KeyValuePair<string, string>(x.Key, x.Value.ToString())),
-                        serverApi);
-                }
-                if (_mechanism == MongoOidcAuthenticator.MechanismName)
-                {
-                    IOidcCallbackAdapterFactory callbackFactory;
-                    if (environmentVariableProvider == null ||
-                        environmentVariableProvider == EnvironmentVariableProvider.Instance)
-                    {
-                        callbackFactory = OidcCallbackAdapterCachingFactory.Instance;
-                    }
-                    else
-                    {
-                        callbackFactory = new OidcCallbackAdapterCachingFactory(SystemClock.Instance, environmentVariableProvider);
-                    }
 
-                    return MongoOidcAuthenticator.CreateAuthenticator(
-                        _identity.Source,
-                        _identity.Username,
-                        _mechanismProperties,
-                        endPoints,
-                        serverApi,
-                        callbackFactory);
-                }
+            if (_mechanism == null)
+            {
+                return new DefaultAuthenticator(_identity, _evidence, endPoints, serverApi);
+            }
+
+            if (SaslAuthenticator.TryCreate(_mechanism, endPoints, _identity, _evidence, _mechanismProperties, serverApi, out var authenticator))
+            {
+                return authenticator;
             }
 
             throw new NotSupportedException("Unable to create an authenticator.");
@@ -545,7 +436,6 @@ namespace MongoDB.Driver
             switch (defaultedMechanism)
             {
                 case "DEFAULT":
-                case "MONGODB-CR":
                 case "SCRAM-SHA-1":
                 case "SCRAM-SHA-256":
                     // it is allowed for a password to be an empty string, but not a username

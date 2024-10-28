@@ -1,4 +1,4 @@
-﻿/* Copyright 2018-present MongoDB Inc.
+﻿/* Copyright 2010-present MongoDB Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,29 +25,17 @@ using MongoDB.Driver.Core.Misc;
 
 namespace MongoDB.Driver.Core.WireProtocol.Messages.Encoders.JsonEncoders
 {
-    /// <summary>
-    /// Represents a JSON encoder for a CommandMessage.
-    /// </summary>
-    /// <seealso cref="MongoDB.Driver.Core.WireProtocol.Messages.Encoders.JsonEncoders.MessageJsonEncoderBase" />
-    /// <seealso cref="MongoDB.Driver.Core.WireProtocol.Messages.Encoders.IMessageEncoder" />
-    public class CommandMessageJsonEncoder : MessageJsonEncoderBase, IMessageEncoder
+    internal sealed class CommandMessageJsonEncoder : MessageJsonEncoderBase, IMessageEncoder
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CommandMessageJsonEncoder"/> class.
-        /// </summary>
-        /// <param name="textReader">The text reader.</param>
-        /// <param name="textWriter">The text writer.</param>
-        /// <param name="encoderSettings">The encoder settings.</param>
+        private static readonly ICommandMessageSectionFormatter<Type0CommandMessageSection> __type0SectionFormatter = new Type0SectionFormatter();
+        private static readonly ICommandMessageSectionFormatter<Type1CommandMessageSection> __type1SectionFormatter = new Type1SectionFormatter();
+
         public CommandMessageJsonEncoder(TextReader textReader, TextWriter textWriter, MessageEncoderSettings encoderSettings)
             : base(textReader, textWriter, encoderSettings)
         {
         }
 
         // public methods
-        /// <summary>
-        /// Reads the message.
-        /// </summary>
-        /// <returns>A message.</returns>
         public CommandMessage ReadMessage()
         {
             var reader = CreateJsonReader();
@@ -71,10 +59,6 @@ namespace MongoDB.Driver.Core.WireProtocol.Messages.Encoders.JsonEncoders
             };
         }
 
-        /// <summary>
-        /// Writes the message.
-        /// </summary>
-        /// <param name="message">The message.</param>
         public void WriteMessage(CommandMessage message)
         {
             Ensure.IsNotNull(message, nameof(message));
@@ -156,18 +140,18 @@ namespace MongoDB.Driver.Core.WireProtocol.Messages.Encoders.JsonEncoders
             writer.WriteStartDocument();
             writer.WriteInt32("payloadType", (int)section.PayloadType);
 
-            switch (section.PayloadType)
+            switch (section)
             {
-                case PayloadType.Type0:
-                    WriteType0Section(writer, (Type0CommandMessageSection)section);
+                case Type0CommandMessageSection type0Section:
+                    __type0SectionFormatter.FormatSection(type0Section, writer);
                     break;
 
-                case PayloadType.Type1:
-                    WriteType1Section(writer, (Type1CommandMessageSection)section);
+                case Type1CommandMessageSection type1Section:
+                    __type1SectionFormatter.FormatSection(type1Section, writer);
                     break;
 
                 default:
-                    throw new ArgumentException($"Invalid payload type: {section.PayloadType}.");
+                    throw new NotSupportedException($"Cannot format command message section of type '{section.GetType().FullName}'.");
             }
 
             writer.WriteEndDocument();
@@ -179,30 +163,6 @@ namespace MongoDB.Driver.Core.WireProtocol.Messages.Encoders.JsonEncoders
             foreach (var section in sections)
             {
                 WriteSection(writer, section);
-            }
-            writer.WriteEndArray();
-        }
-
-        private void WriteType0Section(IBsonWriter writer, Type0CommandMessageSection section)
-        {
-            writer.WriteName("document");
-            var serializer = section.DocumentSerializer;
-            var context = BsonSerializationContext.CreateRoot(writer);
-            serializer.Serialize(context, section.Document);
-        }
-
-        private void WriteType1Section(IBsonWriter writer, Type1CommandMessageSection section)
-        {
-            writer.WriteString("identifier", section.Identifier);
-            writer.WriteName("documents");
-            writer.WriteStartArray();
-            var batch = section.Documents;
-            var serializer = section.DocumentSerializer;
-            var context = BsonSerializationContext.CreateRoot(writer);
-            for (var i = 0; i < batch.Count; i++)
-            {
-                var document = batch.Items[batch.Offset + i];
-                serializer.Serialize(context, document);
             }
             writer.WriteEndArray();
         }

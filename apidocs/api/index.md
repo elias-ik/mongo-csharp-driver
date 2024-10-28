@@ -32,9 +32,6 @@
 <a href="xref:MongoDB.Driver"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.md)]
 
-<a href="xref:MongoDB.Driver.Encryption"></a>
-:   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Encryption.md)]
-
 <a href="xref:MongoDB.Driver.GeoJsonObjectModel"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.GeoJsonObjectModel.md)]
 
@@ -53,12 +50,6 @@
 <a href="xref:MongoDB.Driver.Search"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Search.md)]
 
-<a href="xref:MongoDB.Driver.Core"></a>
-:   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.md)]
-
-<a href="xref:MongoDB.Driver.Core.Authentication"></a>
-:   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.Authentication.md)]
-
 <a href="xref:MongoDB.Driver.Core.Bindings"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.Bindings.md)]
 
@@ -74,9 +65,6 @@
 <a href="xref:MongoDB.Driver.Core.Configuration"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.Configuration.md)]
 
-<a href="xref:MongoDB.Driver.Core.ConnectionPools"></a>
-:   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.ConnectionPools.md)]
-
 <a href="xref:MongoDB.Driver.Core.Connections"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.Connections.md)]
 
@@ -89,15 +77,18 @@
 <a href="xref:MongoDB.Driver.Core.Misc"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.Misc.md)]
 
-<a href="xref:MongoDB.Driver.Core.Operations"></a>
-:   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.Operations.md)]
-
 <a href="xref:MongoDB.Driver.Core.Servers"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.Servers.md)]
-
-<a href="xref:MongoDB.Driver.Core.Operations"></a>
-:   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.Operations.md)]
 
 <a href="xref:MongoDB.Driver.Core.WireProtocol"></a>
 :   [!INCLUDE[summary](../namespaces/MongoDB.Driver/MongoDB.Driver.Core.WireProtocol.md)]
 
+## MongoDB.Driver.Authentication.AWS Namespaces
+
+<a href="xref:MongoDB.Driver.Authentication.AWS"></a>
+:   [!INCLUDE[summary](../namespaces/MongoDB.Driver.Authentication.AWS/MongoDB.Driver.Authentication.AWS.md)]
+
+## MongoDB.Driver.Encryption Namespaces
+
+<a href="xref:MongoDB.Driver.Encryption"></a>
+:   [!INCLUDE[summary](../namespaces/MongoDB.Driver.Encryption/MongoDB.Driver.Encryption.md)]

@@ -13,7 +13,8 @@
 * limitations under the License.
 */
 
-using MongoDB.Bson;
+using System;
+using FluentAssertions;
 using MongoDB.Bson.IO;
 using Xunit;
 
@@ -33,7 +34,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndArray();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : [] }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -51,7 +52,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : [] } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -69,7 +70,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndArray();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : [], 'b' : [] }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -89,7 +90,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : [], 'b' : [] } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -104,7 +105,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteStartDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ }";
             Assert.Equal(expected, json);
         }
@@ -120,7 +121,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : { } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -138,7 +139,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : { } } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -156,7 +157,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : { }, 'b' : { } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -176,7 +177,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : { }, 'b' : { } } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -194,7 +195,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndArray();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : [1] }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -212,7 +213,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndArray();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : [1, 2] }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -230,7 +231,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndArray();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : [[]] }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -249,7 +250,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndArray();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : [['a']] }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -269,7 +270,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndArray();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : [['a', 'b']] }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -295,7 +296,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndArray();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : [['a', 'b'], ['c', { 'd' : 9 }]] }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -311,7 +312,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteBytes("a", new byte[] { 1 });
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : new BinData(0, 'AQ==') }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -328,7 +329,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : new BinData(0, 'AQI=') } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -344,7 +345,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteBytes("b", new byte[] { 2 });
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : new BinData(0, 'AQ=='), 'b' : new BinData(0, 'Ag==') }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -362,7 +363,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : new BinData(0, 'AQ=='), 'b' : new BinData(0, 'Ag==') } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -378,7 +379,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteBoolean("a", true);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : true }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -395,7 +396,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : true } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -411,7 +412,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteBoolean("b", false);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : true, 'b' : false }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -429,7 +430,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : true, 'b' : false } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -445,7 +446,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteDateTime("a", 0);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : ISODate('1970-01-01T00:00:00Z') }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -462,7 +463,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : ISODate('1970-01-01T00:00:00Z') } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -478,7 +479,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteDateTime("b", 0);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : ISODate('1970-01-01T00:00:00Z'), 'b' : ISODate('1970-01-01T00:00:00Z') }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -496,7 +497,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : ISODate('1970-01-01T00:00:00Z'), 'b' : ISODate('1970-01-01T00:00:00Z') } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -512,7 +513,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteDecimal128("a", (Decimal128)1.5M);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : NumberDecimal('1.5') }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -529,7 +530,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : NumberDecimal('1.5') } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -545,7 +546,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteDecimal128("b", (Decimal128)2.5M);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : NumberDecimal('1.5'), 'b' : NumberDecimal('2.5') }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -563,7 +564,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : NumberDecimal('1.5'), 'b' : NumberDecimal('2.5') } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -579,7 +580,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteDouble("a", 1.5);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : 1.5 }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -596,7 +597,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : 1.5 } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -612,7 +613,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteDouble("b", 2.5);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : 1.5, 'b' : 2.5 }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -630,7 +631,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : 1.5, 'b' : 2.5 } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -646,7 +647,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteInt32("a", 1);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : 1 }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -663,7 +664,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : 1 } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -679,7 +680,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteInt32("b", 2);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : 1, 'b' : 2 }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -697,7 +698,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : 1, 'b' : 2 } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -713,7 +714,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteInt64("a", 1);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : NumberLong(1) }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -730,7 +731,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : NumberLong(1) } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -746,7 +747,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteInt64("b", 2);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : NumberLong(1), 'b' : NumberLong(2) }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -764,7 +765,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : NumberLong(1), 'b' : NumberLong(2) } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -780,7 +781,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteJavaScript("a", "x");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : { '$code' : 'x' } }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -797,7 +798,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : { '$code' : 'x' } } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -813,7 +814,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteJavaScript("b", "y");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : { '$code' : 'x' }, 'b' : { '$code' : 'y' } }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -831,7 +832,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : { '$code' : 'x' }, 'b' : { '$code' : 'y' } } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -851,7 +852,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : { '$code' : 'x', '$scope' : { 'x' : 1, 'y' : 2 } } }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -872,7 +873,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : { '$code' : 'x', '$scope' : { 'x' : 1, 'y' : 2 } } } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -894,7 +895,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : { '$code' : 'x', '$scope' : { 'x' : 1 } }, 'b' : { '$code' : 'y', '$scope' : { 'y' : 2 } } }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -918,7 +919,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : { '$code' : 'x', '$scope' : { 'x' : 1 } }, 'b' : { '$code' : 'y', '$scope' : { 'y' : 2 } } } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -934,7 +935,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteMaxKey("a");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : MaxKey }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -951,7 +952,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : MaxKey } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -967,7 +968,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteMaxKey("b");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : MaxKey, 'b' : MaxKey }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -985,7 +986,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : MaxKey, 'b' : MaxKey } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1001,7 +1002,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteMinKey("a");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : MinKey }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1018,7 +1019,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : MinKey } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1034,7 +1035,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteMinKey("b");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : MinKey, 'b' : MinKey }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1052,7 +1053,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : MinKey, 'b' : MinKey } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1068,7 +1069,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteNull("a");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : null }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1085,7 +1086,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : null } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1101,7 +1102,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteNull("b");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : null, 'b' : null }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1119,7 +1120,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : null, 'b' : null } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1135,7 +1136,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteObjectId("a", ObjectId.Empty);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : ObjectId('000000000000000000000000') }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1152,7 +1153,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : ObjectId('000000000000000000000000') } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1168,7 +1169,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteObjectId("b", ObjectId.Empty);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : ObjectId('000000000000000000000000'), 'b' : ObjectId('000000000000000000000000') }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1186,7 +1187,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : ObjectId('000000000000000000000000'), 'b' : ObjectId('000000000000000000000000') } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1202,7 +1203,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteRegularExpression("a", new BsonRegularExpression("p", "i"));
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : /p/i }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1219,7 +1220,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : /p/i } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1235,7 +1236,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteRegularExpression("b", new BsonRegularExpression("q", "m"));
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : /p/i, 'b' : /q/m }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1253,7 +1254,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : /p/i, 'b' : /q/m } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1269,7 +1270,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteString("a", "x");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : 'x' }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1286,7 +1287,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : 'x' } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1302,7 +1303,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteString("b", "y");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : 'x', 'b' : 'y' }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1320,7 +1321,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : 'x', 'b' : 'y' } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1336,7 +1337,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteSymbol("a", "x");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : { '$symbol' : 'x' } }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1353,7 +1354,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : { '$symbol' : 'x' } } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1369,7 +1370,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteSymbol("b", "y");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : { '$symbol' : 'x' }, 'b' : { '$symbol' : 'y' } }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1387,7 +1388,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : { '$symbol' : 'x' }, 'b' : { '$symbol' : 'y' } } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1403,7 +1404,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteTimestamp("a", 1);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : Timestamp(0, 1) }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1420,7 +1421,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : Timestamp(0, 1) } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1436,7 +1437,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteTimestamp("b", 2);
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : Timestamp(0, 1), 'b' : Timestamp(0, 2) }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1454,7 +1455,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : Timestamp(0, 1), 'b' : Timestamp(0, 2) } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1470,7 +1471,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteUndefined("a");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : undefined }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1487,7 +1488,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : undefined } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -1503,7 +1504,7 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteUndefined("b");
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'a' : undefined, 'b' : undefined }".Replace("'", "\""); ;
             Assert.Equal(expected, json);
         }
@@ -1521,9 +1522,75 @@ namespace MongoDB.Bson.Tests.IO
                 writer.WriteEndDocument();
                 writer.WriteEndDocument();
             }
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'nested' : { 'a' : undefined, 'b' : undefined } }".Replace("'", "\"");
             Assert.Equal(expected, json);
+        }
+
+        [Fact]
+        public void WriteGuid_should_work()
+        {
+            var document = new BsonDocument();
+            using var writer = new BsonDocumentWriter(document);
+            var guid = Guid.Parse("01020304-0506-0708-090a-0b0c0d0e0f10");
+
+            writer.WriteStartDocument();
+            writer.WriteName("v");
+            writer.WriteGuid(guid);
+            writer.WriteEndDocument();
+
+            var binaryData = document["v"].AsBsonBinaryData;
+            binaryData.SubType.Should().Be(BsonBinarySubType.UuidStandard);
+            binaryData.Bytes.Should().Equal(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+        }
+
+        [Theory]
+        [InlineData(GuidRepresentation.Standard)]
+        [InlineData(GuidRepresentation.CSharpLegacy)]
+        [InlineData(GuidRepresentation.JavaLegacy)]
+        [InlineData(GuidRepresentation.PythonLegacy)]
+        public void WriteGuid_with_GuidRepresentation_should_work(GuidRepresentation guidRepresentation)
+        {
+            var document = new BsonDocument();
+            using var writer = new BsonDocumentWriter(document);
+            var guid = Guid.Parse("01020304-0506-0708-090a-0b0c0d0e0f10");
+
+            writer.WriteStartDocument();
+            writer.WriteName("v");
+            writer.WriteGuid(guid, guidRepresentation);
+            writer.WriteEndDocument();
+
+            BsonBinarySubType expectedSubType;
+            byte[] expectedBytes;
+            switch (guidRepresentation)
+            {
+                case GuidRepresentation.Standard:
+                    expectedSubType = BsonBinarySubType.UuidStandard;
+                    expectedBytes = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+                    break;
+
+                case GuidRepresentation.CSharpLegacy:
+                    expectedSubType = BsonBinarySubType.UuidLegacy;
+                    expectedBytes = new byte[] { 4, 3, 2, 1, 6, 5, 8, 7, 9, 10, 11, 12, 13, 14, 15, 16 };
+                    break;
+
+                case GuidRepresentation.JavaLegacy:
+                    expectedSubType = BsonBinarySubType.UuidLegacy;
+                    expectedBytes = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1, 16, 15, 14, 13, 12, 11, 10, 9 };
+                    break;
+
+                case GuidRepresentation.PythonLegacy:
+                    expectedSubType = BsonBinarySubType.UuidLegacy;
+                    expectedBytes = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+                    break;
+
+                default:
+                    throw new ArgumentException($"Invalid guidRepresentation: {guidRepresentation}", nameof(guidRepresentation));
+            }
+
+            var binaryData = document["v"].AsBsonBinaryData;
+            binaryData.SubType.Should().Be(expectedSubType);
+            binaryData.Bytes.Should().Equal(expectedBytes);
         }
     }
 }

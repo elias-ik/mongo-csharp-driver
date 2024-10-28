@@ -21,7 +21,7 @@ namespace MongoDB.Bson.Serialization.Serializers
     /// <summary>
     /// Represents a serializer for DateTimeOffsets.
     /// </summary>
-    public class DateTimeOffsetSerializer : StructSerializerBase<DateTimeOffset>, IRepresentationConfigurable<DateTimeOffsetSerializer>
+    public sealed class DateTimeOffsetSerializer : StructSerializerBase<DateTimeOffset>, IRepresentationConfigurable<DateTimeOffsetSerializer>
     {
         // private constants
         private static class Flags
@@ -40,7 +40,7 @@ namespace MongoDB.Bson.Serialization.Serializers
         /// Initializes a new instance of the <see cref="DateTimeOffsetSerializer"/> class.
         /// </summary>
         public DateTimeOffsetSerializer()
-            : this(BsonType.Array)
+            : this(BsonType.Document)
         {
         }
 

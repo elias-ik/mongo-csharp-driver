@@ -27,7 +27,6 @@ using MongoDB.Driver.Core.Clusters;
 using MongoDB.Driver.Core.Misc;
 using MongoDB.Driver.Core.Operations;
 using MongoDB.Driver.Core.WireProtocol.Messages.Encoders;
-using MongoDB.Driver.Linq;
 using MongoDB.Driver.Search;
 
 namespace MongoDB.Driver
@@ -42,7 +41,6 @@ namespace MongoDB.Driver
         private readonly IOperationExecutor _operationExecutor;
         private readonly IBsonSerializer<TDocument> _documentSerializer;
         private readonly MongoCollectionSettings _settings;
-        private readonly RenderArgs<TDocument> _args;
 
         // constructors
         public MongoCollectionImpl(IMongoDatabase database, CollectionNamespace collectionNamespace, MongoCollectionSettings settings, IClusterInternal cluster, IOperationExecutor operationExecutor)
@@ -60,7 +58,6 @@ namespace MongoDB.Driver
             _documentSerializer = Ensure.IsNotNull(documentSerializer, nameof(documentSerializer));
 
             _messageEncoderSettings = GetMessageEncoderSettings();
-            _args = new(_documentSerializer, _settings.SerializerRegistry);
         }
 
         // properties
@@ -103,8 +100,11 @@ namespace MongoDB.Driver
         public override IAsyncCursor<TResult> Aggregate<TResult>(IClientSessionHandle session, PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
             Ensure.IsNotNull(session, nameof(session));
-            var renderedPipeline = Ensure.IsNotNull(pipeline, nameof(pipeline)).Render(_args);
+            Ensure.IsNotNull(pipeline, nameof(pipeline));
             options = options ?? new AggregateOptions();
+
+            var renderArgs = GetRenderArgs(options.TranslationOptions);
+            var renderedPipeline = pipeline.Render(renderArgs);
 
             var lastStage = renderedPipeline.Documents.LastOrDefault();
             var lastStageName = lastStage?.GetElement(0).Name;
@@ -138,8 +138,11 @@ namespace MongoDB.Driver
         public override async Task<IAsyncCursor<TResult>> AggregateAsync<TResult>(IClientSessionHandle session, PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
             Ensure.IsNotNull(session, nameof(session));
-            var renderedPipeline = Ensure.IsNotNull(pipeline, nameof(pipeline)).Render(_args);
+            Ensure.IsNotNull(pipeline, nameof(pipeline));
             options = options ?? new AggregateOptions();
+
+            var renderArgs = GetRenderArgs(options.TranslationOptions);
+            var renderedPipeline = pipeline.Render(renderArgs);
 
             var lastStage = renderedPipeline.Documents.LastOrDefault();
             var lastStageName = lastStage?.GetElement(0).Name;
@@ -173,8 +176,11 @@ namespace MongoDB.Driver
         public override void AggregateToCollection<TResult>(IClientSessionHandle session, PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
             Ensure.IsNotNull(session, nameof(session));
-            var renderedPipeline = Ensure.IsNotNull(pipeline, nameof(pipeline)).Render(_args);
+            Ensure.IsNotNull(pipeline, nameof(pipeline));
             options = options ?? new AggregateOptions();
+
+            var renderArgs = GetRenderArgs(options.TranslationOptions);
+            var renderedPipeline = pipeline.Render(renderArgs);
 
             var lastStage = renderedPipeline.Documents.LastOrDefault();
             var lastStageName = lastStage?.GetElement(0).Name;
@@ -195,8 +201,11 @@ namespace MongoDB.Driver
         public override async Task AggregateToCollectionAsync<TResult>(IClientSessionHandle session, PipelineDefinition<TDocument, TResult> pipeline, AggregateOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
             Ensure.IsNotNull(session, nameof(session));
-            var renderedPipeline = Ensure.IsNotNull(pipeline, nameof(pipeline)).Render(_args);
+            Ensure.IsNotNull(pipeline, nameof(pipeline));
             options = options ?? new AggregateOptions();
+
+            var renderArgs = GetRenderArgs(options.TranslationOptions);
+            var renderedPipeline = pipeline.Render(renderArgs);
 
             var lastStage = renderedPipeline.Documents.LastOrDefault();
             var lastStageName = lastStage?.GetElement(0).Name;
@@ -232,7 +241,8 @@ namespace MongoDB.Driver
 
             options = options ?? new BulkWriteOptions();
 
-            var operation = CreateBulkWriteOperation(session, requestsArray, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateBulkWriteOperation(session, requestsArray, options, renderArgs);
             try
             {
                 var result = ExecuteWriteOperation(session, operation, cancellationToken);
@@ -267,7 +277,8 @@ namespace MongoDB.Driver
 
             options = options ?? new BulkWriteOptions();
 
-            var operation = CreateBulkWriteOperation(session, requestsArray, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateBulkWriteOperation(session, requestsArray, options, renderArgs);
             try
             {
                 var result = await ExecuteWriteOperationAsync(session, operation, cancellationToken).ConfigureAwait(false);
@@ -292,7 +303,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new CountOptions();
 
-            var operation = CreateCountOperation(filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateCountOperation(filter, options, renderArgs);
             return ExecuteReadOperation(session, operation, cancellationToken);
         }
 
@@ -309,7 +321,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new CountOptions();
 
-            var operation = CreateCountOperation(filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateCountOperation(filter, options, renderArgs);
             return ExecuteReadOperationAsync(session, operation, cancellationToken);
         }
 
@@ -324,7 +337,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new CountOptions();
 
-            var operation = CreateCountDocumentsOperation(filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateCountDocumentsOperation(filter, options, renderArgs);
             return ExecuteReadOperation(session, operation, cancellationToken);
         }
 
@@ -339,7 +353,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new CountOptions();
 
-            var operation = CreateCountDocumentsOperation(filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateCountDocumentsOperation(filter, options, renderArgs);
             return ExecuteReadOperationAsync(session, operation, cancellationToken);
         }
 
@@ -355,7 +370,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new DistinctOptions();
 
-            var operation = CreateDistinctOperation(field, filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateDistinctOperation(field, filter, options, renderArgs);
             return ExecuteReadOperation(session, operation, cancellationToken);
         }
 
@@ -371,7 +387,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new DistinctOptions();
 
-            var operation = CreateDistinctOperation(field, filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateDistinctOperation(field, filter, options, renderArgs);
             return ExecuteReadOperationAsync(session, operation, cancellationToken);
         }
 
@@ -387,7 +404,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new DistinctOptions();
 
-            var operation = CreateDistinctManyOperation(field, filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateDistinctManyOperation(field, filter, options, renderArgs);
             return ExecuteReadOperation(session, operation, cancellationToken);
         }
 
@@ -403,7 +421,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new DistinctOptions();
 
-            var operation = CreateDistinctManyOperation(field, filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateDistinctManyOperation(field, filter, options, renderArgs);
             return ExecuteReadOperationAsync(session, operation, cancellationToken);
         }
 
@@ -436,7 +455,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new FindOptions<TDocument, TProjection>();
 
-            var operation = CreateFindOperation<TProjection>(filter, options);
+            var renderArgs = GetRenderArgs(options.TranslationOptions);
+            var operation = CreateFindOperation<TProjection>(filter, options, renderArgs);
             return ExecuteReadOperation(session, operation, cancellationToken);
         }
 
@@ -451,7 +471,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new FindOptions<TDocument, TProjection>();
 
-            var operation = CreateFindOperation<TProjection>(filter, options);
+            var renderArgs = GetRenderArgs(options.TranslationOptions);
+            var operation = CreateFindOperation<TProjection>(filter, options, renderArgs);
             return ExecuteReadOperationAsync(session, operation, cancellationToken);
         }
 
@@ -466,7 +487,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new FindOneAndDeleteOptions<TDocument, TProjection>();
 
-            var operation = CreateFindOneAndDeleteOperation<TProjection>(filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateFindOneAndDeleteOperation<TProjection>(filter, options, renderArgs);
             return ExecuteWriteOperation(session, operation, cancellationToken);
         }
 
@@ -481,7 +503,8 @@ namespace MongoDB.Driver
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new FindOneAndDeleteOptions<TDocument, TProjection>();
 
-            var operation = CreateFindOneAndDeleteOperation<TProjection>(filter, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateFindOneAndDeleteOperation<TProjection>(filter, options, renderArgs);
             return ExecuteWriteOperationAsync(session, operation, cancellationToken);
         }
 
@@ -497,7 +520,8 @@ namespace MongoDB.Driver
             var replacementObject = Ensure.IsNotNull((object)replacement, nameof(replacement)); // only box once if it's a struct
             options = options ?? new FindOneAndReplaceOptions<TDocument, TProjection>();
 
-            var operation = CreateFindOneAndReplaceOperation(filter, replacementObject, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateFindOneAndReplaceOperation(filter, replacementObject, options, renderArgs);
             return ExecuteWriteOperation(session, operation, cancellationToken);
         }
 
@@ -513,7 +537,8 @@ namespace MongoDB.Driver
             var replacementObject = Ensure.IsNotNull((object)replacement, nameof(replacement)); // only box once if it's a struct
             options = options ?? new FindOneAndReplaceOptions<TDocument, TProjection>();
 
-            var operation = CreateFindOneAndReplaceOperation(filter, replacementObject, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateFindOneAndReplaceOperation(filter, replacementObject, options, renderArgs);
             return ExecuteWriteOperationAsync(session, operation, cancellationToken);
         }
 
@@ -534,7 +559,8 @@ namespace MongoDB.Driver
                 throw new NotSupportedException("An arrayfilter is not supported in the pipeline-style update.");
             }
 
-            var operation = CreateFindOneAndUpdateOperation(filter, update, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateFindOneAndUpdateOperation(filter, update, options, renderArgs);
             return ExecuteWriteOperation(session, operation, cancellationToken);
         }
 
@@ -555,7 +581,8 @@ namespace MongoDB.Driver
                 throw new NotSupportedException("An arrayfilter is not supported in the pipeline-style update.");
             }
 
-            var operation = CreateFindOneAndUpdateOperation(filter, update, options);
+            var renderArgs = GetRenderArgs();
+            var operation = CreateFindOneAndUpdateOperation(filter, update, options, renderArgs);
             return ExecuteWriteOperationAsync(session, operation, cancellationToken);
         }
 
@@ -576,14 +603,15 @@ namespace MongoDB.Driver
             var outputOptions = options.OutputOptions ?? MapReduceOutputOptions.Inline;
             var resultSerializer = ResolveResultSerializer<TResult>(options.ResultSerializer);
 
+            var renderArgs = GetRenderArgs();
             if (outputOptions == MapReduceOutputOptions.Inline)
             {
-                var operation = CreateMapReduceOperation(map, reduce, options, resultSerializer);
+                var operation = CreateMapReduceOperation(map, reduce, options, resultSerializer, renderArgs);
                 return ExecuteReadOperation(session, operation, cancellationToken);
             }
             else
             {
-                var mapReduceOperation = CreateMapReduceOutputToCollectionOperation(map, reduce, options, outputOptions);
+                var mapReduceOperation = CreateMapReduceOutputToCollectionOperation(map, reduce, options, outputOptions, renderArgs);
                 ExecuteWriteOperation(session, mapReduceOperation, cancellationToken);
 
                 // we want to delay execution of the find because the user may
@@ -615,14 +643,15 @@ namespace MongoDB.Driver
             var outputOptions = options.OutputOptions ?? MapReduceOutputOptions.Inline;
             var resultSerializer = ResolveResultSerializer<TResult>(options.ResultSerializer);
 
+            var renderArgs = GetRenderArgs();
             if (outputOptions == MapReduceOutputOptions.Inline)
             {
-                var operation = CreateMapReduceOperation(map, reduce, options, resultSerializer);
+                var operation = CreateMapReduceOperation(map, reduce, options, resultSerializer, renderArgs);
                 return await ExecuteReadOperationAsync(session, operation, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                var mapReduceOperation = CreateMapReduceOutputToCollectionOperation(map, reduce, options, outputOptions);
+                var mapReduceOperation = CreateMapReduceOutputToCollectionOperation(map, reduce, options, outputOptions, renderArgs);
                 await ExecuteWriteOperationAsync(session, mapReduceOperation, cancellationToken).ConfigureAwait(false);
 
                 // we want to delay execution of the find because the user may
@@ -644,7 +673,8 @@ namespace MongoDB.Driver
             var derivedDocumentCollection = new MongoCollectionImpl<TDerivedDocument>(_database, _collectionNamespace, _settings, _cluster, _operationExecutor, ofTypeSerializer);
 
             var rootOfTypeFilter = Builders<TDocument>.Filter.OfType<TDerivedDocument>();
-            var renderedOfTypeFilter = rootOfTypeFilter.Render(_args);
+            var renderArgs = GetRenderArgs();
+            var renderedOfTypeFilter = rootOfTypeFilter.Render(renderArgs);
             var ofTypeFilter = new BsonDocumentFilterDefinition<TDerivedDocument>(renderedOfTypeFilter);
 
             return new OfTypeMongoCollection<TDocument, TDerivedDocument>(this, derivedDocumentCollection, ofTypeFilter);
@@ -666,7 +696,8 @@ namespace MongoDB.Driver
         {
             Ensure.IsNotNull(session, nameof(session));
             Ensure.IsNotNull(pipeline, nameof(pipeline));
-            var operation = CreateChangeStreamOperation(pipeline, options);
+            var translationOptions = _database.Client.Settings.TranslationOptions;
+            var operation = CreateChangeStreamOperation(pipeline, options, translationOptions);
             return ExecuteReadOperation(session, operation, cancellationToken);
         }
 
@@ -678,7 +709,7 @@ namespace MongoDB.Driver
             return UsingImplicitSessionAsync(session => WatchAsync(session, pipeline, options, cancellationToken), cancellationToken);
         }
 
-        public override async Task<IChangeStreamCursor<TResult>> WatchAsync<TResult>(
+        public override Task<IChangeStreamCursor<TResult>> WatchAsync<TResult>(
             IClientSessionHandle session,
             PipelineDefinition<ChangeStreamDocument<TDocument>, TResult> pipeline,
             ChangeStreamOptions options = null,
@@ -686,8 +717,9 @@ namespace MongoDB.Driver
         {
             Ensure.IsNotNull(session, nameof(session));
             Ensure.IsNotNull(pipeline, nameof(pipeline));
-            var operation = CreateChangeStreamOperation(pipeline, options);
-            return await ExecuteReadOperationAsync(session, operation, cancellationToken).ConfigureAwait(false);
+            var translationOptions = _database.Client.Settings.TranslationOptions;
+            var operation = CreateChangeStreamOperation(pipeline, options, translationOptions);
+            return ExecuteReadOperationAsync(session, operation, cancellationToken);
         }
 
         public override IMongoCollection<TDocument> WithReadConcern(ReadConcern readConcern)
@@ -712,26 +744,7 @@ namespace MongoDB.Driver
         }
 
         // private methods
-        private void AssignId(TDocument document)
-        {
-            var idProvider = _documentSerializer as IBsonIdProvider;
-            if (idProvider != null)
-            {
-                object id;
-                Type idNominalType;
-                IIdGenerator idGenerator;
-                if (idProvider.GetDocumentId(document, out id, out idNominalType, out idGenerator))
-                {
-                    if (idGenerator != null && idGenerator.IsEmpty(id))
-                    {
-                        id = idGenerator.GenerateId(this, document);
-                        idProvider.SetDocumentId(document, id);
-                    }
-                }
-            }
-        }
-
-        private WriteRequest ConvertWriteModelToWriteRequest(WriteModel<TDocument> model, int index)
+        private WriteRequest ConvertWriteModelToWriteRequest(WriteModel<TDocument> model, int index, RenderArgs<TDocument> renderArgs)
         {
             switch (model.ModelType)
             {
@@ -739,7 +752,7 @@ namespace MongoDB.Driver
                     var insertOneModel = (InsertOneModel<TDocument>)model;
                     if (_settings.AssignIdOnInsert)
                     {
-                        AssignId(insertOneModel.Document);
+                        _documentSerializer.SetDocumentIdIfMissing(this, insertOneModel.Document);
                     }
                     return new InsertRequest(new BsonDocumentWrapper(insertOneModel.Document, _documentSerializer))
                     {
@@ -747,7 +760,7 @@ namespace MongoDB.Driver
                     };
                 case WriteModelType.DeleteMany:
                     var deleteManyModel = (DeleteManyModel<TDocument>)model;
-                    return new DeleteRequest(deleteManyModel.Filter.Render(_args))
+                    return new DeleteRequest(deleteManyModel.Filter.Render(renderArgs))
                     {
                         CorrelationId = index,
                         Collation = deleteManyModel.Collation,
@@ -756,7 +769,7 @@ namespace MongoDB.Driver
                     };
                 case WriteModelType.DeleteOne:
                     var deleteOneModel = (DeleteOneModel<TDocument>)model;
-                    return new DeleteRequest(deleteOneModel.Filter.Render(_args))
+                    return new DeleteRequest(deleteOneModel.Filter.Render(renderArgs))
                     {
                         CorrelationId = index,
                         Collation = deleteOneModel.Collation,
@@ -767,7 +780,7 @@ namespace MongoDB.Driver
                     var replaceOneModel = (ReplaceOneModel<TDocument>)model;
                     return new UpdateRequest(
                         UpdateType.Replacement,
-                        replaceOneModel.Filter.Render(_args),
+                        replaceOneModel.Filter.Render(renderArgs),
                         new BsonDocumentWrapper(replaceOneModel.Replacement, _documentSerializer))
                     {
                         Collation = replaceOneModel.Collation,
@@ -780,8 +793,8 @@ namespace MongoDB.Driver
                     var updateManyModel = (UpdateManyModel<TDocument>)model;
                     return new UpdateRequest(
                         UpdateType.Update,
-                        updateManyModel.Filter.Render(_args),
-                        updateManyModel.Update.Render(_args))
+                        updateManyModel.Filter.Render(renderArgs),
+                        updateManyModel.Update.Render(renderArgs))
                     {
                         ArrayFilters = RenderArrayFilters(updateManyModel.ArrayFilters),
                         Collation = updateManyModel.Collation,
@@ -794,8 +807,8 @@ namespace MongoDB.Driver
                     var updateOneModel = (UpdateOneModel<TDocument>)model;
                     return new UpdateRequest(
                         UpdateType.Update,
-                        updateOneModel.Filter.Render(_args),
-                        updateOneModel.Update.Render(_args))
+                        updateOneModel.Filter.Render(renderArgs),
+                        updateOneModel.Update.Render(renderArgs))
                     {
                         ArrayFilters = RenderArrayFilters(updateOneModel.ArrayFilters),
                         Collation = updateOneModel.Collation,
@@ -928,13 +941,17 @@ namespace MongoDB.Driver
             };
         }
 
-        private BulkMixedWriteOperation CreateBulkWriteOperation(IClientSessionHandle session, IEnumerable<WriteModel<TDocument>> requests, BulkWriteOptions options)
+        private BulkMixedWriteOperation CreateBulkWriteOperation(
+            IClientSessionHandle session,
+            IEnumerable<WriteModel<TDocument>> requests,
+            BulkWriteOptions options,
+            RenderArgs<TDocument> renderArgs)
         {
             var effectiveWriteConcern = session.IsInTransaction ? WriteConcern.Acknowledged : _settings.WriteConcern;
 
             return new BulkMixedWriteOperation(
                 _collectionNamespace,
-                requests.Select(ConvertWriteModelToWriteRequest),
+                requests.Select((model, index) => ConvertWriteModelToWriteRequest(model, index, renderArgs)),
                 _messageEncoderSettings)
             {
                 BypassDocumentValidation = options.BypassDocumentValidation,
@@ -948,7 +965,8 @@ namespace MongoDB.Driver
 
         private ChangeStreamOperation<TResult> CreateChangeStreamOperation<TResult>(
             PipelineDefinition<ChangeStreamDocument<TDocument>, TResult> pipeline,
-            ChangeStreamOptions options)
+            ChangeStreamOptions options,
+            ExpressionTranslationOptions translationOptions)
         {
             return ChangeStreamHelper.CreateChangeStreamOperation(
                 this,
@@ -956,16 +974,20 @@ namespace MongoDB.Driver
                 _documentSerializer,
                 options,
                 _settings.ReadConcern, messageEncoderSettings: _messageEncoderSettings,
-                _database.Client.Settings.RetryReads);
+                _database.Client.Settings.RetryReads,
+                translationOptions);
         }
 
-        private CountDocumentsOperation CreateCountDocumentsOperation(FilterDefinition<TDocument> filter, CountOptions options)
+        private CountDocumentsOperation CreateCountDocumentsOperation(
+            FilterDefinition<TDocument> filter,
+            CountOptions options,
+            RenderArgs<TDocument> renderArgs)
         {
             return new CountDocumentsOperation(_collectionNamespace, _messageEncoderSettings)
             {
                 Collation = options.Collation,
                 Comment = options.Comment,
-                Filter = filter.Render(_args),
+                Filter = filter.Render(renderArgs),
                 Hint = options.Hint,
                 Limit = options.Limit,
                 MaxTime = options.MaxTime,
@@ -975,13 +997,16 @@ namespace MongoDB.Driver
             };
         }
 
-        private CountOperation CreateCountOperation(FilterDefinition<TDocument> filter, CountOptions options)
+        private CountOperation CreateCountOperation(
+            FilterDefinition<TDocument> filter,
+            CountOptions options,
+            RenderArgs<TDocument> renderArgs)
         {
             return new CountOperation(_collectionNamespace, _messageEncoderSettings)
             {
                 Collation = options.Collation,
                 Comment = options.Comment,
-                Filter = filter.Render(_args),
+                Filter = filter.Render(renderArgs),
                 Hint = options.Hint,
                 Limit = options.Limit,
                 MaxTime = options.MaxTime,
@@ -991,9 +1016,13 @@ namespace MongoDB.Driver
             };
         }
 
-        private DistinctOperation<TField> CreateDistinctOperation<TField>(FieldDefinition<TDocument, TField> field, FilterDefinition<TDocument> filter, DistinctOptions options)
+        private DistinctOperation<TField> CreateDistinctOperation<TField>(
+            FieldDefinition<TDocument, TField> field,
+            FilterDefinition<TDocument> filter,
+            DistinctOptions options,
+            RenderArgs<TDocument> renderArgs)
         {
-            var renderedField = field.Render(_args);
+            var renderedField = field.Render(renderArgs);
             var valueSerializer = GetValueSerializerForDistinct(renderedField, _settings.SerializerRegistry);
 
             return new DistinctOperation<TField>(
@@ -1004,16 +1033,20 @@ namespace MongoDB.Driver
             {
                 Collation = options.Collation,
                 Comment = options.Comment,
-                Filter = filter.Render(_args),
+                Filter = filter.Render(renderArgs),
                 MaxTime = options.MaxTime,
                 ReadConcern = _settings.ReadConcern,
                 RetryRequested = _database.Client.Settings.RetryReads,
             };
         }
 
-        private DistinctOperation<TItem> CreateDistinctManyOperation<TItem>(FieldDefinition<TDocument, IEnumerable<TItem>> field, FilterDefinition<TDocument> filter, DistinctOptions options)
+        private DistinctOperation<TItem> CreateDistinctManyOperation<TItem>(
+            FieldDefinition<TDocument, IEnumerable<TItem>> field,
+            FilterDefinition<TDocument> filter,
+            DistinctOptions options,
+            RenderArgs<TDocument> renderArgs)
         {
-            var renderedField = field.Render(_args);
+            var renderedField = field.Render(renderArgs);
             var itemSerializer = GetItemSerializerForDistinctMany(renderedField, _settings.SerializerRegistry);
 
             return new DistinctOperation<TItem>(
@@ -1024,7 +1057,7 @@ namespace MongoDB.Driver
             {
                 Collation = options.Collation,
                 Comment = options.Comment,
-                Filter = filter.Render(_args),
+                Filter = filter.Render(renderArgs),
                 MaxTime = options.MaxTime,
                 ReadConcern = _settings.ReadConcern,
                 RetryRequested = _database.Client.Settings.RetryReads,
@@ -1041,14 +1074,17 @@ namespace MongoDB.Driver
             };
         }
 
-        private FindOneAndDeleteOperation<TProjection> CreateFindOneAndDeleteOperation<TProjection>(FilterDefinition<TDocument> filter, FindOneAndDeleteOptions<TDocument, TProjection> options)
+        private FindOneAndDeleteOperation<TProjection> CreateFindOneAndDeleteOperation<TProjection>(
+            FilterDefinition<TDocument> filter,
+            FindOneAndDeleteOptions<TDocument, TProjection> options,
+            RenderArgs<TDocument> renderArgs)
         {
             var projection = options.Projection ?? new ClientSideDeserializationProjectionDefinition<TDocument, TProjection>();
-            var renderedProjection = projection.Render(_args with { RenderForFind = true });
+            var renderedProjection = projection.Render(renderArgs with { RenderForFind = true });
 
             return new FindOneAndDeleteOperation<TProjection>(
                 _collectionNamespace,
-                filter.Render(_args),
+                filter.Render(renderArgs),
                 new FindAndModifyValueDeserializer<TProjection>(renderedProjection.ProjectionSerializer),
                 _messageEncoderSettings)
             {
@@ -1058,20 +1094,24 @@ namespace MongoDB.Driver
                 Let = options.Let,
                 MaxTime = options.MaxTime,
                 Projection = renderedProjection.Document,
-                Sort = options.Sort?.Render(_args),
+                Sort = options.Sort?.Render(renderArgs),
                 WriteConcern = _settings.WriteConcern,
                 RetryRequested = _database.Client.Settings.RetryWrites
             };
         }
 
-        private FindOneAndReplaceOperation<TProjection> CreateFindOneAndReplaceOperation<TProjection>(FilterDefinition<TDocument> filter, object replacementObject, FindOneAndReplaceOptions<TDocument, TProjection> options)
+        private FindOneAndReplaceOperation<TProjection> CreateFindOneAndReplaceOperation<TProjection>(
+            FilterDefinition<TDocument> filter,
+            object replacementObject,
+            FindOneAndReplaceOptions<TDocument, TProjection> options,
+            RenderArgs<TDocument> renderArgs)
         {
             var projection = options.Projection ?? new ClientSideDeserializationProjectionDefinition<TDocument, TProjection>();
-            var renderedProjection = projection.Render(_args with { RenderForFind = true });
+            var renderedProjection = projection.Render(renderArgs with { RenderForFind = true });
 
             return new FindOneAndReplaceOperation<TProjection>(
                 _collectionNamespace,
-                filter.Render(_args),
+                filter.Render(renderArgs),
                 new BsonDocumentWrapper(replacementObject, _documentSerializer),
                 new FindAndModifyValueDeserializer<TProjection>(renderedProjection.ProjectionSerializer),
                 _messageEncoderSettings)
@@ -1084,22 +1124,26 @@ namespace MongoDB.Driver
                 Let = options.Let,
                 MaxTime = options.MaxTime,
                 Projection = renderedProjection.Document,
-                ReturnDocument = options.ReturnDocument.ToCore(),
-                Sort = options.Sort?.Render(_args),
+                ReturnDocument = options.ReturnDocument,
+                Sort = options.Sort?.Render(renderArgs),
                 WriteConcern = _settings.WriteConcern,
                 RetryRequested = _database.Client.Settings.RetryWrites
             };
         }
 
-        private FindOneAndUpdateOperation<TProjection> CreateFindOneAndUpdateOperation<TProjection>(FilterDefinition<TDocument> filter, UpdateDefinition<TDocument> update, FindOneAndUpdateOptions<TDocument, TProjection> options)
+        private FindOneAndUpdateOperation<TProjection> CreateFindOneAndUpdateOperation<TProjection>(
+            FilterDefinition<TDocument> filter,
+            UpdateDefinition<TDocument> update,
+            FindOneAndUpdateOptions<TDocument, TProjection> options,
+            RenderArgs<TDocument> renderArgs)
         {
             var projection = options.Projection ?? new ClientSideDeserializationProjectionDefinition<TDocument, TProjection>();
-            var renderedProjection = projection.Render(_args with { RenderForFind = true });
+            var renderedProjection = projection.Render(renderArgs with { RenderForFind = true });
 
             return new FindOneAndUpdateOperation<TProjection>(
                 _collectionNamespace,
-                filter.Render(_args),
-                update.Render(_args),
+                filter.Render(renderArgs),
+                update.Render(renderArgs),
                 new FindAndModifyValueDeserializer<TProjection>(renderedProjection.ProjectionSerializer),
                 _messageEncoderSettings)
             {
@@ -1112,17 +1156,20 @@ namespace MongoDB.Driver
                 Let = options.Let,
                 MaxTime = options.MaxTime,
                 Projection = renderedProjection.Document,
-                ReturnDocument = options.ReturnDocument.ToCore(),
-                Sort = options.Sort?.Render(_args),
+                ReturnDocument = options.ReturnDocument,
+                Sort = options.Sort?.Render(renderArgs),
                 WriteConcern = _settings.WriteConcern,
                 RetryRequested = _database.Client.Settings.RetryWrites
             };
         }
 
-        private FindOperation<TProjection> CreateFindOperation<TProjection>(FilterDefinition<TDocument> filter, FindOptions<TDocument, TProjection> options)
+        private FindOperation<TProjection> CreateFindOperation<TProjection>(
+            FilterDefinition<TDocument> filter,
+            FindOptions<TDocument, TProjection> options,
+            RenderArgs<TDocument> renderArgs)
         {
             var projection = options.Projection ?? new ClientSideDeserializationProjectionDefinition<TDocument, TProjection>();
-            var renderedProjection = projection.Render(_args with { RenderForFind = true });
+            var renderedProjection = projection.Render(renderArgs with { RenderForFind = true });
 
             return new FindOperation<TProjection>(
                 _collectionNamespace,
@@ -1134,8 +1181,8 @@ namespace MongoDB.Driver
                 BatchSize = options.BatchSize,
                 Collation = options.Collation,
                 Comment = options.Comment,
-                CursorType = options.CursorType.ToCore(),
-                Filter = filter.Render(_args),
+                CursorType = options.CursorType,
+                Filter = filter.Render(renderArgs),
                 Hint = options.Hint,
                 Let = options.Let,
                 Limit = options.Limit,
@@ -1153,12 +1200,17 @@ namespace MongoDB.Driver
                 ReturnKey = options.ReturnKey,
                 ShowRecordId = options.ShowRecordId,
                 Skip = options.Skip,
-                Sort = options.Sort?.Render(_args)
+                Sort = options.Sort?.Render(renderArgs)
             };
         }
 
 #pragma warning disable CS0618 // Type or member is obsolete
-        private MapReduceOperation<TResult> CreateMapReduceOperation<TResult>(BsonJavaScript map, BsonJavaScript reduce, MapReduceOptions<TDocument, TResult> options, IBsonSerializer<TResult> resultSerializer)
+        private MapReduceOperation<TResult> CreateMapReduceOperation<TResult>(
+            BsonJavaScript map,
+            BsonJavaScript reduce,
+            MapReduceOptions<TDocument, TResult> options,
+            IBsonSerializer<TResult> resultSerializer,
+            RenderArgs<TDocument> renderArgs)
         {
             return new MapReduceOperation<TResult>(
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -1169,7 +1221,7 @@ namespace MongoDB.Driver
                 _messageEncoderSettings)
             {
                 Collation = options.Collation,
-                Filter = options.Filter?.Render(_args),
+                Filter = options.Filter?.Render(renderArgs),
                 FinalizeFunction = options.Finalize,
 #pragma warning disable 618
                 JavaScriptMode = options.JavaScriptMode,
@@ -1178,13 +1230,18 @@ namespace MongoDB.Driver
                 MaxTime = options.MaxTime,
                 ReadConcern = _settings.ReadConcern,
                 Scope = options.Scope,
-                Sort = options.Sort?.Render(_args),
+                Sort = options.Sort?.Render(renderArgs),
                 Verbose = options.Verbose
             };
         }
 
 #pragma warning disable CS0618 // Type or member is obsolete
-        private MapReduceOutputToCollectionOperation CreateMapReduceOutputToCollectionOperation<TResult>(BsonJavaScript map, BsonJavaScript reduce, MapReduceOptions<TDocument, TResult> options, MapReduceOutputOptions outputOptions)
+        private MapReduceOutputToCollectionOperation CreateMapReduceOutputToCollectionOperation<TResult>(
+            BsonJavaScript map,
+            BsonJavaScript reduce,
+            MapReduceOptions<TDocument, TResult> options,
+            MapReduceOutputOptions outputOptions,
+            RenderArgs<TDocument> renderArgs)
         {
             var collectionOutputOptions = (MapReduceOutputOptions.CollectionOutput)outputOptions;
             var databaseNamespace = collectionOutputOptions.DatabaseName == null ?
@@ -1202,7 +1259,7 @@ namespace MongoDB.Driver
             {
                 BypassDocumentValidation = options.BypassDocumentValidation,
                 Collation = options.Collation,
-                Filter = options.Filter?.Render(_args),
+                Filter = options.Filter?.Render(renderArgs),
                 FinalizeFunction = options.Finalize,
 #pragma warning disable 618
                 JavaScriptMode = options.JavaScriptMode,
@@ -1217,7 +1274,7 @@ namespace MongoDB.Driver
 #pragma warning disable 618
                 ShardedOutput = collectionOutputOptions.Sharded,
 #pragma warning restore 618
-                Sort = options.Sort?.Render(_args),
+                Sort = options.Sort?.Render(renderArgs),
                 Verbose = options.Verbose,
                 WriteConcern = _settings.WriteConcern
             };
@@ -1261,12 +1318,6 @@ namespace MongoDB.Driver
                 { MessageEncoderSettingsName.ReadEncoding, _settings.ReadEncoding ?? Utf8Encodings.Strict },
                 { MessageEncoderSettingsName.WriteEncoding, _settings.WriteEncoding ?? Utf8Encodings.Strict }
             };
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                messageEncoderSettings.Add(MessageEncoderSettingsName.GuidRepresentation, _settings.GuidRepresentation);
-            }
-#pragma warning restore 618
 
             if (_database.Client is MongoClient mongoClient)
             {
@@ -1320,6 +1371,18 @@ namespace MongoDB.Driver
             }
 
             return serializerRegistry.GetSerializer<TItem>();
+        }
+
+        private RenderArgs<TDocument> GetRenderArgs()
+        {
+            var translationOptions = _database.Client.Settings.TranslationOptions;
+            return new RenderArgs<TDocument>(_documentSerializer, _settings.SerializerRegistry, translationOptions: translationOptions);
+        }
+
+        private RenderArgs<TDocument> GetRenderArgs(ExpressionTranslationOptions translationOptions)
+        {
+            translationOptions = translationOptions.AddMissingOptionsFrom(_database.Client.Settings.TranslationOptions);
+            return new RenderArgs<TDocument>(_documentSerializer, _settings.SerializerRegistry, translationOptions: translationOptions);
         }
 
         private TResult ExecuteReadOperation<TResult>(IClientSessionHandle session, IReadOperation<TResult> operation, CancellationToken cancellationToken = default(CancellationToken))
@@ -1376,7 +1439,7 @@ namespace MongoDB.Driver
             var renderedArrayFilters = new List<BsonDocument>();
             foreach (var arrayFilter in arrayFilters)
             {
-                var renderedArrayFilter = arrayFilter.Render(null, _args.SerializerRegistry);
+                var renderedArrayFilter = arrayFilter.Render(null, _settings.SerializerRegistry);
                 renderedArrayFilters.Add(renderedArrayFilter);
             }
 
@@ -1486,7 +1549,8 @@ namespace MongoDB.Driver
                 Ensure.IsNotNull(session, nameof(session));
                 Ensure.IsNotNull(models, nameof(models));
 
-                var requests = CreateCreateIndexRequests(models);
+                var renderArgs = _collection.GetRenderArgs();
+                var requests = CreateCreateIndexRequests(models, renderArgs);
                 var operation = CreateCreateIndexesOperation(requests, options);
                 _collection.ExecuteWriteOperation(session, operation, cancellationToken);
 
@@ -1520,7 +1584,8 @@ namespace MongoDB.Driver
                 Ensure.IsNotNull(session, nameof(session));
                 Ensure.IsNotNull(models, nameof(models));
 
-                var requests = CreateCreateIndexRequests(models);
+                var renderArgs = _collection.GetRenderArgs();
+                var requests = CreateCreateIndexRequests(models, renderArgs);
                 var operation = CreateCreateIndexesOperation(requests, options);
                 await _collection.ExecuteWriteOperationAsync(session, operation, cancellationToken).ConfigureAwait(false);
 
@@ -1691,14 +1756,14 @@ namespace MongoDB.Driver
                 };
             }
 
-            private IEnumerable<CreateIndexRequest> CreateCreateIndexRequests(IEnumerable<CreateIndexModel<TDocument>> models)
+            private IEnumerable<CreateIndexRequest> CreateCreateIndexRequests(IEnumerable<CreateIndexModel<TDocument>> models, RenderArgs<TDocument> renderArgs)
             {
                 return models.Select(m =>
                 {
                     var options = m.Options ?? new CreateIndexOptions<TDocument>();
-                    var keysDocument = m.Keys.Render(_collection._args);
-                    var renderedPartialFilterExpression = options.PartialFilterExpression == null ? null : options.PartialFilterExpression.Render(_collection._args);
-                    var renderedWildcardProjection = options.WildcardProjection?.Render(_collection._args);
+                    var keysDocument = m.Keys.Render(renderArgs);
+                    var renderedPartialFilterExpression = options.PartialFilterExpression == null ? null : options.PartialFilterExpression.Render(renderArgs);
+                    var renderedWildcardProjection = options.WildcardProjection?.Render(renderArgs);
 
                     return new CreateIndexRequest(keysDocument)
                     {

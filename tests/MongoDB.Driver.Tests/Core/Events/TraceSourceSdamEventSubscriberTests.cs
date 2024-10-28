@@ -15,6 +15,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using FluentAssertions;
@@ -53,7 +54,7 @@ namespace MongoDB.Driver.Core.Events
             const string logFileName = traceSourceName + "-log";
             var @event = new ClusterOpenedEvent(new ClusterId(), new ClusterSettings(), new TimeSpan(1));
             var expectedLogMessage =
-                $"{TraceSourceEventHelper.Label(@event.ClusterId)}: opened in {@event.Duration.TotalMilliseconds}ms.";
+                $"{TraceSourceEventHelper.Label(@event.ClusterId)}: opened in {@event.Duration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}ms.";
             var traceSource = CreateTraceSource(logFileName, logFileName);
             var subject = new TraceSourceSdamEventSubscriber(traceSource);
 
@@ -86,7 +87,7 @@ namespace MongoDB.Driver.Core.Events
             const string logFileName = traceSourceName + "-log";
             var @event = new ClusterClosedEvent(new ClusterId(), new TimeSpan(1));
             var expectedLogMessage =
-                $"{TraceSourceEventHelper.Label(@event.ClusterId)}: closed in {@event.Duration.TotalMilliseconds}ms.";
+                $"{TraceSourceEventHelper.Label(@event.ClusterId)}: closed in {@event.Duration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}ms.";
             var traceSource = CreateTraceSource(logFileName, logFileName);
             var subject = new TraceSourceSdamEventSubscriber(traceSource);
 
@@ -126,7 +127,7 @@ namespace MongoDB.Driver.Core.Events
                 new TimeSpan(1));
             var expectedLogMessage =
                 $"{TraceSourceEventHelper.Label(@event.ServerId.ClusterId)}: added server " +
-                $"{TraceSourceEventHelper.Format(@event.ServerId)} in {@event.Duration.TotalMilliseconds}ms.";
+                $"{TraceSourceEventHelper.Format(@event.ServerId)} in {@event.Duration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}ms.";
             var traceSource = CreateTraceSource(logFileName, logFileName);
             var subject = new TraceSourceSdamEventSubscriber(traceSource);
 
@@ -167,7 +168,7 @@ namespace MongoDB.Driver.Core.Events
                 new TimeSpan(42));
             var expectedLogMessage =
                 $"{TraceSourceEventHelper.Label(@event.ServerId.ClusterId)}: removed server " +
-                $"{TraceSourceEventHelper.Format(@event.ServerId)} in {@event.Duration.TotalMilliseconds}ms. " +
+                $"{TraceSourceEventHelper.Format(@event.ServerId)} in {@event.Duration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}ms. " +
                 $"Reason: {@event.Reason}";
             var traceSource = CreateTraceSource(logFileName, logFileName);
             var subject = new TraceSourceSdamEventSubscriber(traceSource);
@@ -185,18 +186,19 @@ namespace MongoDB.Driver.Core.Events
             const string logFileName = traceSourceName + "-log";
             var ipAddress = new IPEndPoint(IPAddress.Parse("1.2.3.4"), 42);
             var @event = new ClusterDescriptionChangedEvent(
-#pragma warning disable CS0618 // Type or member is obsolete
                 oldDescription: new ClusterDescription(
                     new ClusterId(),
-                    ClusterConnectionMode.Automatic,
+                    false,
+                    null,
                     ClusterType.Unknown,
-                    new ServerDescription[] { }),
+                    []),
                 newDescription: new ClusterDescription(
                     new ClusterId(),
-                    ClusterConnectionMode.Direct,
+                    false,
+                    null,
                     ClusterType.Standalone,
-                    new ServerDescription[] { new ServerDescription(new ServerId(new ClusterId(), ipAddress), ipAddress) }));
-#pragma warning restore CS0618 // Type or member is obsolete
+                    [new ServerDescription(new ServerId(new ClusterId(), ipAddress), ipAddress)]));
+
             var expectedLogMessage =
                 $"{TraceSourceEventHelper.Label(@event.OldDescription.ClusterId)}: {@event.NewDescription}";
             var traceSource = CreateTraceSource(logFileName, logFileName);
@@ -251,7 +253,7 @@ namespace MongoDB.Driver.Core.Events
                 new ServerSettings(),
                 new TimeSpan(42));
             var expectedLogMessage =
-                $"{TraceSourceEventHelper.Label(@event.ServerId)}: opened in {@event.Duration.TotalMilliseconds}ms.";
+                $"{TraceSourceEventHelper.Label(@event.ServerId)}: opened in {@event.Duration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}ms.";
             var traceSource = CreateTraceSource(logFileName, logFileName);
             var subject = new TraceSourceSdamEventSubscriber(traceSource);
 
@@ -287,7 +289,7 @@ namespace MongoDB.Driver.Core.Events
                 new ServerId(new ClusterId(), new IPEndPoint(IPAddress.Parse("1.2.3.4"), 42)),
                 new TimeSpan(42));
             var expectedLogMessage =
-                $"{TraceSourceEventHelper.Label(@event.ServerId)}: closed in {@event.Duration.TotalMilliseconds}ms.";
+                $"{TraceSourceEventHelper.Label(@event.ServerId)}: closed in {@event.Duration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}ms.";
             var traceSource = CreateTraceSource(logFileName, logFileName);
             var subject = new TraceSourceSdamEventSubscriber(traceSource);
 
@@ -325,7 +327,7 @@ namespace MongoDB.Driver.Core.Events
                 new TimeSpan(42),
                 awaited: true);
             var expectedLogMessage =
-                $"{TraceSourceEventHelper.Label(@event.ConnectionId)}: sent heartbeat in {@event.Duration.TotalMilliseconds}ms.";
+                $"{TraceSourceEventHelper.Label(@event.ConnectionId)}: sent heartbeat in {@event.Duration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture)}ms.";
             var traceSource = CreateTraceSource(logFileName, logFileName);
             var subject = new TraceSourceSdamEventSubscriber(traceSource);
 

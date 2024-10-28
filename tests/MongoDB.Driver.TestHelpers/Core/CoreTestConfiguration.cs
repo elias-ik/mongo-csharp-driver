@@ -21,10 +21,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Serializers;
-using MongoDB.Driver.Core.Authentication;
+using MongoDB.Driver.Authentication;
 using MongoDB.Driver.Core.Bindings;
 using MongoDB.Driver.Core.Clusters;
-using MongoDB.Driver.Core.Clusters.ServerSelectors;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Misc;
 using MongoDB.Driver.Core.Operations;
@@ -90,7 +89,7 @@ namespace MongoDB.Driver
             }
         }
 
-        public static MessageEncoderSettings MessageEncoderSettings
+        internal static MessageEncoderSettings MessageEncoderSettings
         {
             get { return __messageEncoderSettings; }
         }
@@ -252,20 +251,10 @@ namespace MongoDB.Driver
 
         public static string GetCryptSharedLibPath() => Environment.GetEnvironmentVariable("CRYPT_SHARED_LIB_PATH");
 
-        public static ConnectionString CreateConnectionString()
-        {
-            var uri = Environment.GetEnvironmentVariable("MONGODB_URI") ?? Environment.GetEnvironmentVariable("MONGO_URI");
-            if (uri == null)
-            {
-                uri = "mongodb://localhost";
-                if (IsReplicaSet(uri))
-                {
-                    uri += "/?connect=replicaSet";
-                }
-            }
-
-            return new ConnectionString(uri);
-        }
+        public static ConnectionString CreateConnectionString() =>
+            new(Environment.GetEnvironmentVariable("MONGODB_URI") ??
+                Environment.GetEnvironmentVariable("MONGO_URI") ??
+                "mongodb://localhost");
 
         private static ConnectionString GetConnectionStringWithMultipleShardRouters()
         {
@@ -514,20 +503,6 @@ namespace MongoDB.Driver
 
                     return null;
                 }
-            }
-        }
-
-        private static bool IsReplicaSet(string uri)
-        {
-            var clusterBuilder = new ClusterBuilder().ConfigureWithConnectionString(uri, __serverApi.Value);
-
-            using (var cluster = clusterBuilder.BuildClusterInternal())
-            {
-                cluster.Initialize();
-
-                var serverSelector = new ReadPreferenceServerSelector(ReadPreference.PrimaryPreferred);
-                var server = cluster.SelectServer(serverSelector, CancellationToken.None);
-                return server.Description.Type.IsReplicaSetMember();
             }
         }
 

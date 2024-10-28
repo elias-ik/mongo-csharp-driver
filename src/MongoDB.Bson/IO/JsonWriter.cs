@@ -16,7 +16,6 @@
 using System;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -28,7 +27,9 @@ namespace MongoDB.Bson.IO
     public class JsonWriter : BsonWriter
     {
         // private fields
-        private TextWriter _textWriter;
+#pragma warning disable CA2213 // Disposable never disposed
+        private readonly TextWriter _textWriter;
+#pragma warning restore CA2213 // Disposable never disposed
         private JsonWriterContext _context;
 
         // constructors
@@ -120,27 +121,11 @@ namespace MongoDB.Bson.IO
 
             var subType = binaryData.SubType;
             var bytes = binaryData.Bytes;
-#pragma warning disable 618
-            GuidRepresentation guidRepresentation;
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                guidRepresentation = binaryData.GuidRepresentation;
-            }
-            else
-            {
-                guidRepresentation = subType == BsonBinarySubType.UuidStandard ? GuidRepresentation.Standard : GuidRepresentation.Unspecified;
-            }
-#pragma warning restore 618
+            var guidRepresentation = subType == BsonBinarySubType.UuidStandard ? GuidRepresentation.Standard : GuidRepresentation.Unspecified;
 
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
-                    _textWriter.Write("{{ \"$binary\" : \"{0}\", \"$type\" : \"{1}\" }}", Convert.ToBase64String(bytes), ((int)subType).ToString("x2"));
-                    break;
-
                 case JsonOutputMode.CanonicalExtendedJson:
                 case JsonOutputMode.RelaxedExtendedJson:
                     _textWriter.Write("{{ \"$binary\" : {{ \"base64\" : \"{0}\", \"subType\" : \"{1}\" }} }}", Convert.ToBase64String(bytes), ((int)subType).ToString("x2"));
@@ -207,17 +192,11 @@ namespace MongoDB.Bson.IO
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
-                    _textWriter.Write("{{ \"$date\" : {0} }}", value);
-                    break;
-
                 case JsonOutputMode.RelaxedExtendedJson:
                     if (value >= 0 && value <= BsonConstants.DateTimeMaxValueMillisecondsSinceEpoch)
                     {
                         var utcDateTime = BsonUtils.ToDateTimeFromMillisecondsSinceEpoch(value);
-                        _textWriter.Write("{{ \"$date\" : \"{0}\" }}", utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.FFFZ"));
+                        _textWriter.Write("{{ \"$date\" : \"{0}\" }}", utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.FFFZ", CultureInfo.InvariantCulture));
                     }
                     else
                     {
@@ -236,7 +215,7 @@ namespace MongoDB.Bson.IO
                         value <= BsonConstants.DateTimeMaxValueMillisecondsSinceEpoch)
                     {
                         var utcDateTime = BsonUtils.ToDateTimeFromMillisecondsSinceEpoch(value);
-                        _textWriter.Write("ISODate(\"{0}\")", utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.FFFZ"));
+                        _textWriter.Write("ISODate(\"{0}\")", utcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.FFFZ", CultureInfo.InvariantCulture));
                     }
                     else
                     {
@@ -264,9 +243,6 @@ namespace MongoDB.Bson.IO
                     _textWriter.Write("NumberDecimal(\"{0}\")", value.ToString());
                     break;
 
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
                 case JsonOutputMode.CanonicalExtendedJson:
                 case JsonOutputMode.RelaxedExtendedJson:
                 default:
@@ -312,9 +288,7 @@ namespace MongoDB.Bson.IO
                         _textWriter.Write(stringRepresentation);
                     }
                     break;
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
+
                 case JsonOutputMode.Shell:
                 default:
                     _textWriter.Write(stringRepresentation);
@@ -388,6 +362,29 @@ namespace MongoDB.Bson.IO
             }
         }
 
+        /// <inheritdoc/>
+        public override void WriteGuid(Guid value, GuidRepresentation guidRepresentation)
+        {
+            if (Disposed) { throw new ObjectDisposedException("JsonWriter"); }
+            if (State != BsonWriterState.Value && State != BsonWriterState.Initial)
+            {
+                ThrowInvalidState("WriteGuid", BsonWriterState.Value, BsonWriterState.Initial);
+            }
+
+            WriteNameHelper(Name);
+            var representationConstructor = guidRepresentation switch
+            {
+                GuidRepresentation.Standard => "UUID",
+                GuidRepresentation.CSharpLegacy => "CSUUID",
+                GuidRepresentation.JavaLegacy => "JUUID",
+                GuidRepresentation.PythonLegacy => "PYUUID",
+                _ => throw new ArgumentException($"Invalid {nameof(guidRepresentation)} value: {guidRepresentation}", nameof(guidRepresentation))
+            };
+            _textWriter.Write($"{representationConstructor}(\"{value}\")");
+
+            State = GetNextState();
+        }
+
         /// <summary>
         /// Writes a BSON Int32 to the writer.
         /// </summary>
@@ -406,9 +403,7 @@ namespace MongoDB.Bson.IO
                 case JsonOutputMode.CanonicalExtendedJson:
                     _textWriter.Write("{{ \"$numberInt\" : \"{0}\" }}", value);
                     break;
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
+
                 case JsonOutputMode.RelaxedExtendedJson:
                 case JsonOutputMode.Shell:
                 default:
@@ -434,9 +429,6 @@ namespace MongoDB.Bson.IO
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
                 case JsonOutputMode.RelaxedExtendedJson:
                     _textWriter.Write(value);
                     break;
@@ -513,9 +505,6 @@ namespace MongoDB.Bson.IO
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
                 case JsonOutputMode.CanonicalExtendedJson:
                 case JsonOutputMode.RelaxedExtendedJson:
                     _textWriter.Write("{ \"$maxKey\" : 1 }");
@@ -544,9 +533,6 @@ namespace MongoDB.Bson.IO
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
                 case JsonOutputMode.CanonicalExtendedJson:
                 case JsonOutputMode.RelaxedExtendedJson:
                     _textWriter.Write("{ \"$minKey\" : 1 }");
@@ -593,9 +579,6 @@ namespace MongoDB.Bson.IO
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
                 case JsonOutputMode.CanonicalExtendedJson:
                 case JsonOutputMode.RelaxedExtendedJson:
                     _textWriter.Write("{{ \"$oid\" : \"{0}\" }}", objectId.ToString());
@@ -628,12 +611,6 @@ namespace MongoDB.Bson.IO
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
-                    _textWriter.Write("{{ \"$regex\" : \"{0}\", \"$options\" : \"{1}\" }}", EscapedString(pattern), EscapedString(options));
-                    break;
-
                 case JsonOutputMode.CanonicalExtendedJson:
                 case JsonOutputMode.RelaxedExtendedJson:
                     _textWriter.Write("{{ \"$regularExpression\" : {{ \"pattern\" : \"{0}\", \"options\" : \"{1}\" }} }}", EscapedString(pattern), EscapedString(options));
@@ -745,9 +722,6 @@ namespace MongoDB.Bson.IO
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
                 case JsonOutputMode.CanonicalExtendedJson:
                 case JsonOutputMode.RelaxedExtendedJson:
                     _textWriter.Write("{{ \"$timestamp\" : {{ \"t\" : {0}, \"i\" : {1} }} }}", secondsSinceEpoch, increment);
@@ -776,9 +750,6 @@ namespace MongoDB.Bson.IO
             WriteNameHelper(Name);
             switch (Settings.OutputMode)
             {
-#pragma warning disable 618
-                case JsonOutputMode.Strict:
-#pragma warning restore 618
                 case JsonOutputMode.CanonicalExtendedJson:
                 case JsonOutputMode.RelaxedExtendedJson:
                     _textWriter.Write("{ \"$undefined\" : true }");

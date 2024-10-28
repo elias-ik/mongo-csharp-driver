@@ -31,7 +31,7 @@ namespace MongoDB.Driver.Linq.Linq3Implementation
         public abstract Task<IAsyncCursor<TOutput>> ExecuteAsync();
     }
 
-    internal class MongoQuery<TDocument, TOutput> : MongoQuery<TOutput>, IOrderedMongoQueryable<TOutput>, IMongoQueryableForwarder<TOutput>
+    internal class MongoQuery<TDocument, TOutput> : MongoQuery<TOutput>, IOrderedQueryable<TOutput>, IAsyncCursorSource<TOutput>, IMongoQueryableForwarder<TOutput>
     {
         // private fields
         private readonly Expression _expression;
@@ -64,13 +64,15 @@ namespace MongoDB.Driver.Linq.Linq3Implementation
         // public methods
         public override IAsyncCursor<TOutput> Execute()
         {
-            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression);
+            var translationOptions = _provider.GetTranslationOptions();
+            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression, translationOptions);
             return _provider.Execute(executableQuery, CancellationToken.None);
         }
 
         public override Task<IAsyncCursor<TOutput>> ExecuteAsync()
         {
-            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression);
+            var translationOptions = _provider.GetTranslationOptions();
+            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression, translationOptions);
             return _provider.ExecuteAsync(executableQuery, CancellationToken.None);
         }
 
@@ -87,13 +89,15 @@ namespace MongoDB.Driver.Linq.Linq3Implementation
 
         public IAsyncCursor<TOutput> ToCursor(CancellationToken cancellationToken = default)
         {
-            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression);
+            var translationOptions = _provider.GetTranslationOptions();
+            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression, translationOptions);
             return _provider.Execute(executableQuery, cancellationToken);
         }
 
         public Task<IAsyncCursor<TOutput>> ToCursorAsync(CancellationToken cancellationToken = default)
         {
-            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression);
+            var translationOptions = _provider.GetTranslationOptions();
+            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression, translationOptions);
             return _provider.ExecuteAsync(executableQuery, cancellationToken);
         }
 
@@ -101,7 +105,8 @@ namespace MongoDB.Driver.Linq.Linq3Implementation
         {
             try
             {
-                var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression);
+                var translationOptions = _provider.GetTranslationOptions();
+                var executableQuery = ExpressionToExecutableQueryTranslator.Translate<TDocument, TOutput>(_provider, _expression, translationOptions);
                 return executableQuery.ToString();
             }
             catch (ExpressionNotSupportedException ex)

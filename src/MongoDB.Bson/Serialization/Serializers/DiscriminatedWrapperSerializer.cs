@@ -21,7 +21,7 @@ namespace MongoDB.Bson.Serialization.Serializers
     /// Represents a serializer that serializes values as a discriminator/value pair.
     /// </summary>
     /// <typeparam name="TValue">The type of the value.</typeparam>
-    public class DiscriminatedWrapperSerializer<TValue> : SerializerBase<TValue>
+    public sealed class DiscriminatedWrapperSerializer<TValue> : SerializerBase<TValue>
     {
         // private constants
         private static class Flags
@@ -148,8 +148,11 @@ namespace MongoDB.Bson.Serialization.Serializers
             var discriminator = _discriminatorConvention.GetDiscriminator(nominalType, actualType);
 
             bsonWriter.WriteStartDocument();
-            bsonWriter.WriteName(_discriminatorConvention.ElementName);
-            BsonValueSerializer.Instance.Serialize(context, discriminator);
+            if (discriminator != null)
+            {
+                bsonWriter.WriteName(_discriminatorConvention.ElementName);
+                BsonValueSerializer.Instance.Serialize(context, discriminator);
+            }
             bsonWriter.WriteName("_v");
             args.NominalType = actualType;
             _wrappedSerializer.Serialize(context, args, value);

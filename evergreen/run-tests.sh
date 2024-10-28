@@ -14,7 +14,7 @@ set -o errexit  # Exit the script with error if any of the commands fail
 #   OCSP_TLS_SHOULD_SUCCEED         Set to test OCSP. Values are true/false/nil
 #   MONGODB_X509_CLIENT_P12_PATH    Absolute path to client certificate in p12 format
 #   MONGO_X509_CLIENT_CERTIFICATE_PASSWORD  password for client certificate
-#   FRAMEWORK                       Set to specify .NET framework to test against. Values: "Net472", "NetStandard20", "NetStandard21",
+#   FRAMEWORK                       Set to specify .NET framework to test against. Values: "Net472", "NetStandard21",
 #   TARGET                          Set to specify a custom test target. Default: "nil"
 #
 # Environment variables produced as output:
@@ -134,11 +134,34 @@ if [[ "$CLIENT_PEM" != "nil" ]]; then
 fi
 
 if [[ -z "$MONGO_X509_CLIENT_CERTIFICATE_PATH" && -z "$MONGO_X509_CLIENT_CERTIFICATE_PASSWORD" ]]; then
-    # technically the above condiion will be always true since CLIENT_PEM is always set and 
-    # convert-client-cert-to-pkcs12 always assigns these env variables, but leaving this condition in case 
+    # technically the above condiion will be always true since CLIENT_PEM is always set and
+    # convert-client-cert-to-pkcs12 always assigns these env variables, but leaving this condition in case
     # if we make CLIENT_PEM input parameter conditional
     export MONGO_X509_CLIENT_CERTIFICATE_PATH=${MONGO_X509_CLIENT_CERTIFICATE_PATH}
     export MONGO_X509_CLIENT_CERTIFICATE_PASSWORD="${MONGO_X509_CLIENT_CERTIFICATE_PASSWORD}"
+fi
+
+. ./evergreen/export-libmongocrypt-path.sh
+
+if [[ "$TARGET" =~ "SmokeTests" ]]; then
+    unset LIBMONGOCRYPT_PATH
+    # add/adjust nuget.config pointing to myget so intermediate versions could be restored
+    if [ -f "./nuget.config" ]; then
+      echo "Adding myget into nuget.config"
+      dotnet nuget add source https://www.myget.org/F/mongodb/api/v3/index.json -n myget.org --configfile ./nuget.config
+    else
+      echo "Creating custom nuget.config"
+      cat > "nuget.config" << EOL
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <add key="myget.org" value="https://www.myget.org/F/mongodb/api/v3/index.json" />
+  </packageSources>
+</configuration>
+EOL
+    fi
 fi
 
 if [[ "$OS" =~ Windows|windows ]]; then

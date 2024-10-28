@@ -144,6 +144,7 @@ namespace MongoDB.Driver
                 ShowRecordId = _options.ShowRecordId,
                 Skip = _options.Skip,
                 Sort = _options.Sort,
+                TranslationOptions = _options.TranslationOptions
             };
             return new FindFluent<TDocument, TNewProjection>(_session, _collection, _filter, newOptions);
         }
@@ -186,13 +187,18 @@ namespace MongoDB.Driver
 
         public override string ToString()
         {
+            return ToString(translationOptions: null);
+        }
+
+        public override string ToString(ExpressionTranslationOptions translationOptions)
+        {
             var sb = new StringBuilder("find(");
-            var renderedFilter = Render(_filter.Render);
+            var renderedFilter = Render(_filter.Render, translationOptions);
             sb.Append(renderedFilter.ToString());
 
             if (_options.Projection != null)
             {
-                var renderedProjection = Render(_options.Projection.Render, renderForFind: true);
+                var renderedProjection = Render(_options.Projection.Render, translationOptions, renderForFind: true);
                 if (renderedProjection.Document != null)
                 {
                     sb.Append(", " + renderedProjection.Document.ToString());
@@ -207,7 +213,7 @@ namespace MongoDB.Driver
 
             if (_options.Sort != null)
             {
-                var renderedSort = Render(_options.Sort.Render);
+                var renderedSort = Render(_options.Sort.Render, translationOptions);
                 sb.Append(".sort(" + renderedSort.ToString() + ")");
             }
 
@@ -272,12 +278,13 @@ namespace MongoDB.Driver
             };
         }
 
-        private TRendered Render<TRendered>(Func<RenderArgs<TDocument>, TRendered> renderer, bool renderForFind = false)
+        private TRendered Render<TRendered>(Func<RenderArgs<TDocument>, TRendered> renderer, ExpressionTranslationOptions translationOptions, bool renderForFind = false)
         {
             var args = new RenderArgs<TDocument>(
                 _collection.DocumentSerializer,
                 _collection.Settings.SerializerRegistry,
-                renderForFind: renderForFind);
+                renderForFind: renderForFind,
+                translationOptions: translationOptions);
 
             return renderer(args);
         }

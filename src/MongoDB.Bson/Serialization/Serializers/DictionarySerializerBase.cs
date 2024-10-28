@@ -115,7 +115,7 @@ namespace MongoDB.Bson.Serialization.Serializers
             get { return _valueSerializer; }
         }
 
-        // public methods        
+        // public methods
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
@@ -594,19 +594,6 @@ namespace MongoDB.Bson.Serialization.Serializers
         /// </summary>
         /// <returns>The accumulator.</returns>
         protected virtual ICollection<KeyValuePair<TKey, TValue>> CreateAccumulator()
-        {
-#pragma warning disable 618
-            return (ICollection<KeyValuePair<TKey, TValue>>)CreateInstance();
-#pragma warning restore 618
-        }
-
-        // protected methods
-        /// <summary>
-        /// Creates the instance.
-        /// </summary>
-        /// <returns>The instance.</returns>
-        [Obsolete("CreateInstance is deprecated. Please use CreateAccumulator instead.")]
-        protected virtual TDictionary CreateInstance()
         {
             throw new NotImplementedException();
         }

@@ -13,6 +13,7 @@
 * limitations under the License.
 */
 
+using System.Linq;
 using System.Linq.Expressions;
 using MongoDB.Driver.Linq.Linq3Implementation.Ast;
 using MongoDB.Driver.Linq.Linq3Implementation.Ast.Stages;
@@ -33,21 +34,18 @@ namespace MongoDB.Driver.Linq.Linq3Implementation.Translators.ExpressionToPipeli
             {
                 var firstExpression = arguments[0];
                 var pipeline = ExpressionToPipelineTranslator.Translate(context, firstExpression);
+                ClientSideProjectionHelper.ThrowIfClientSideProjection(expression, pipeline, method);
 
                 var secondExpression = arguments[1];
-                var secondValue = secondExpression.Evaluate(); // TODO: Evaluate might not be necessary once IMongoQueryable is removed
-                if (secondValue is IMongoQueryable secondQueryable)
+                var secondValue = secondExpression.Evaluate();
+                if (secondValue is IQueryable secondQueryable &&
+                    secondQueryable.Provider is IMongoQueryProviderInternal secondProvider &&
+                    secondProvider.CollectionNamespace is var secondCollectionNamespace &&
+                    secondCollectionNamespace != null)
                 {
-                    var secondProvider = (IMongoQueryProviderInternal)secondQueryable.Provider;
-                    var secondCollectionNamespace = secondProvider.CollectionNamespace;
-                    if (secondCollectionNamespace == null)
-                    {
-                        throw new ExpressionNotSupportedException(expression, because: "second argument must be an IMongoQueryable against a collection");
-                    }
-
                     var secondCollectionName = secondCollectionNamespace.CollectionName;
                     var secondPipelineInputSerializer = secondProvider.PipelineInputSerializer;
-                    var secondContext = TranslationContext.Create(secondQueryable.Expression, secondPipelineInputSerializer);
+                    var secondContext = TranslationContext.Create(secondQueryable.Expression, secondPipelineInputSerializer, context.TranslationOptions);
                     var secondPipeline = ExpressionToPipelineTranslator.Translate(secondContext, secondQueryable.Expression);
                     if (secondPipeline.Stages.Count == 0)
                     {
@@ -61,7 +59,7 @@ namespace MongoDB.Driver.Linq.Linq3Implementation.Translators.ExpressionToPipeli
                     return pipeline;
                 }
 
-                throw new ExpressionNotSupportedException(expression, because: "second argument must be IMongoQueryable");
+                throw new ExpressionNotSupportedException(expression, because: "second argument must be a MongoDB IQueryable against a collection");
             }
 
             throw new ExpressionNotSupportedException(expression);

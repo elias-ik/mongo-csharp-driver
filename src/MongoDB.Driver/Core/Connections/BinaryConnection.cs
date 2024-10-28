@@ -25,7 +25,7 @@ using System.Threading.Tasks;
 using System.Buffers.Binary;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson.IO;
-using MongoDB.Driver.Core.Authentication.Oidc;
+using MongoDB.Driver.Authentication;
 using MongoDB.Driver.Core.Compression;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Events;
@@ -38,10 +38,7 @@ using MongoDB.Driver.Core.WireProtocol.Messages.Encoders.BinaryEncoders;
 
 namespace MongoDB.Driver.Core.Connections
 {
-    /// <summary>
-    /// Represents a connection using the binary wire protocol over a binary stream.
-    /// </summary>
-    internal class BinaryConnection : IConnection
+    internal sealed class BinaryConnection : IConnection
     {
         // fields
         private readonly CommandEventHelper _commandEventHelper;
@@ -325,9 +322,9 @@ namespace MongoDB.Driver.Core.Connections
 
         private void InvalidateAuthenticator()
         {
-            if (_connectionInitializerContext?.Authenticator is MongoOidcAuthenticator oidcAuthenticator)
+            if (_connectionInitializerContext?.Authenticator is SaslAuthenticator saslAuthenticator)
             {
-                oidcAuthenticator.ClearCredentialsCache();
+                saslAuthenticator.Mechanism.OnReAuthenticationRequired();
             }
         }
 

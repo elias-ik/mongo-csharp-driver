@@ -15,10 +15,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using FluentAssertions;
 using MongoDB.Bson.TestHelpers;
-using MongoDB.Driver.Core.Authentication;
+using MongoDB.Driver.Authentication;
 using MongoDB.Driver.Core.Connections;
 using MongoDB.Driver.Core.Servers;
 using Moq;
@@ -37,29 +36,27 @@ namespace MongoDB.Driver.Core.Configuration
         public void CreateServerMonitorFactory_should_return_expected_result(int connectTimeoutMilliseconds, int heartbeatTimeoutMilliseconds, int expectedServerMonitorConnectTimeoutMilliseconds, int expectedServerMonitorSocketTimeoutMilliseconds)
         {
             var connectTimeout = TimeSpan.FromMilliseconds(connectTimeoutMilliseconds);
-            var authenticatorFactories = new[] { new AuthenticatorFactory(() => new DefaultAuthenticator(new UsernamePasswordCredential("source", "username", "password"), serverApi: null)) };
+            var authenticatorFactory = new AuthenticatorFactory(() => Mock.Of<IAuthenticator>());
             var heartbeatTimeout = TimeSpan.FromMilliseconds(heartbeatTimeoutMilliseconds);
             var serverMonitoringMode = ServerMonitoringMode.Stream;
             var expectedServerMonitorConnectTimeout = TimeSpan.FromMilliseconds(expectedServerMonitorConnectTimeoutMilliseconds);
             var expectedServerMonitorSocketTimeout = TimeSpan.FromMilliseconds(expectedServerMonitorSocketTimeoutMilliseconds);
             var subject = new ClusterBuilder()
                 .ConfigureTcp(s => s.With(connectTimeout: connectTimeout))
-                .ConfigureConnection(s => s.With(authenticatorFactories: authenticatorFactories))
+                .ConfigureConnection(s => s.With(authenticatorFactory: authenticatorFactory))
                 .ConfigureServer(s => s.With(heartbeatTimeout: heartbeatTimeout, serverMonitoringMode: serverMonitoringMode));
 
             var result = (ServerMonitorFactory)subject.CreateServerMonitorFactory();
 
             var serverMonitorConnectionFactory = (BinaryConnectionFactory)result._connectionFactory();
             var serverMonitorConnectionSettings = serverMonitorConnectionFactory._settings();
-            serverMonitorConnectionSettings.AuthenticatorFactories.Should().HaveCount(0);
+            serverMonitorConnectionSettings.AuthenticatorFactory.Should().BeNull();
 
             var serverMonitorStreamFactory = (TcpStreamFactory)serverMonitorConnectionFactory._streamFactory();
             var serverMonitorTcpStreamSettings = serverMonitorStreamFactory._settings();
             serverMonitorTcpStreamSettings.ConnectTimeout.Should().Be(expectedServerMonitorConnectTimeout);
             serverMonitorTcpStreamSettings.ReadTimeout.Should().Be(expectedServerMonitorSocketTimeout);
             serverMonitorTcpStreamSettings.WriteTimeout.Should().Be(expectedServerMonitorSocketTimeout);
-
-            var eventSuscriber = result._eventSubscriber();
 
             var serverSettings = result._serverMonitorSettings();
             serverSettings.ServerMonitoringMode.Should().Be(ServerMonitoringMode.Stream);

@@ -333,8 +333,7 @@ namespace MongoDB.Bson.Serialization
             BsonSerializer.ConfigLock.EnterReadLock();
             try
             {
-                BsonClassMap classMap;
-                if (__classMaps.TryGetValue(classType, out classMap))
+                if (__classMaps.TryGetValue(classType, out var classMap))
                 {
                     if (classMap.IsFrozen)
                     {
@@ -347,19 +346,22 @@ namespace MongoDB.Bson.Serialization
                 BsonSerializer.ConfigLock.ExitReadLock();
             }
 
+            // automatically create a new classMap for classType and register it (unless another thread does first)
+            // do the work of speculatively creating a new class map outside of holding any lock
+            var classMapDefinition = typeof(BsonClassMap<>);
+            var classMapType = classMapDefinition.MakeGenericType(classType);
+            var newClassMap = (BsonClassMap)Activator.CreateInstance(classMapType);
+            newClassMap.AutoMap();
+
             BsonSerializer.ConfigLock.EnterWriteLock();
             try
             {
-                BsonClassMap classMap;
-                if (!__classMaps.TryGetValue(classType, out classMap))
+                if (!__classMaps.TryGetValue(classType, out var classMap))
                 {
-                    // automatically create a classMap for classType and register it
-                    var classMapDefinition = typeof(BsonClassMap<>);
-                    var classMapType = classMapDefinition.MakeGenericType(classType);
-                    classMap = (BsonClassMap)Activator.CreateInstance(classMapType);
-                    classMap.AutoMap();
-                    RegisterClassMap(classMap);
+                    RegisterClassMap(newClassMap);
+                    classMap = newClassMap;
                 }
+
                 return classMap.Freeze();
             }
             finally
@@ -1092,6 +1094,21 @@ namespace MongoDB.Bson.Serialization
         }
 
         /// <summary>
+        /// Sets the discriminator convention.
+        /// </summary>
+        /// <param name="discriminatorConvention">The discriminator convention.</param>
+        public void SetDiscriminatorConvention(IDiscriminatorConvention discriminatorConvention)
+        {
+            if (discriminatorConvention == null)
+            {
+                throw new ArgumentNullException("discriminatorConvention");
+            }
+
+            if (_frozen) { ThrowFrozenException(); }
+            _discriminatorConvention = discriminatorConvention;
+        }
+
+        /// <summary>
         /// Sets whether a discriminator is required when serializing this class.
         /// </summary>
         /// <param name="discriminatorIsRequired">Whether a discriminator is required.</param>
@@ -1306,8 +1323,8 @@ namespace MongoDB.Bson.Serialization
             var discriminatorConvention = _discriminatorConvention;
             if (discriminatorConvention == null)
             {
-                // it's possible but harmless for multiple threads to do the initial lookup at the same time
-                discriminatorConvention = BsonSerializer.LookupDiscriminatorConvention(_classType);
+                // it's possible but harmless for multiple threads to do the field initialization at the same time
+                discriminatorConvention = _hasRootClass ? StandardDiscriminatorConvention.Hierarchical : StandardDiscriminatorConvention.Scalar;
                 _discriminatorConvention = discriminatorConvention;
             }
             return discriminatorConvention;

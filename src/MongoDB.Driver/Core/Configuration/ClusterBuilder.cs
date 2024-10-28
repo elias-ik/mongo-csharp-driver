@@ -14,15 +14,11 @@
 */
 
 using System;
-using System.Diagnostics;
-using System.IO;
 using System.Threading;
-using MongoDB.Driver.Core.Authentication;
 using MongoDB.Driver.Core.Clusters;
 using MongoDB.Driver.Core.ConnectionPools;
 using MongoDB.Driver.Core.Connections;
 using MongoDB.Driver.Core.Events;
-using MongoDB.Driver.Core.Events.Diagnostics;
 using MongoDB.Driver.Core.Logging;
 using MongoDB.Driver.Core.Misc;
 using MongoDB.Driver.Core.Servers;
@@ -43,9 +39,6 @@ namespace MongoDB.Driver.Core.Configuration
         private ConnectionPoolSettings _connectionPoolSettings;
         private ConnectionSettings _connectionSettings;
         private LoggingSettings _loggingSettings;
-#pragma warning disable CS0618 // Type or member is obsolete
-        private SdamLoggingSettings _sdamLoggingSettings;
-#pragma warning restore CS0618 // Type or member is obsolete
         private ServerSettings _serverSettings;
         private SslStreamSettings _sslStreamSettings;
         private Func<IStreamFactory, IStreamFactory> _streamFactoryWrapper;
@@ -58,9 +51,6 @@ namespace MongoDB.Driver.Core.Configuration
         public ClusterBuilder()
         {
             _clusterSettings = new ClusterSettings();
-#pragma warning disable CS0618 // Type or member is obsolete
-            _sdamLoggingSettings = new SdamLoggingSettings(null);
-#pragma warning restore CS0618 // Type or member is obsolete
             _serverSettings = new ServerSettings();
             _connectionPoolSettings = new ConnectionPoolSettings();
             _connectionSettings = new ConnectionSettings();
@@ -136,29 +126,6 @@ namespace MongoDB.Driver.Core.Configuration
         }
 
         /// <summary>
-        /// Configures the SDAM logging settings.
-        /// </summary>
-        /// <param name="configurator">The SDAM logging settings configurator delegate.</param>
-        /// <returns>A reconfigured cluster builder.</returns>
-        [Obsolete("Use ConfigureLoggingSettings instead.")]
-        public ClusterBuilder ConfigureSdamLogging(Func<SdamLoggingSettings, SdamLoggingSettings> configurator)
-        {
-            _sdamLoggingSettings = configurator(_sdamLoggingSettings);
-            if (!_sdamLoggingSettings.IsLoggingEnabled)
-            {
-                return this;
-            }
-            var traceSource = new TraceSource(__traceSourceName, SourceLevels.All);
-            traceSource.Listeners.Clear(); // remove the default listener
-            var listener = _sdamLoggingSettings.ShouldLogToStdout
-                ? new TextWriterTraceListener(Console.Out)
-                : new TextWriterTraceListener(new FileStream(_sdamLoggingSettings.LogFilename, FileMode.Append));
-            listener.TraceOutputOptions = TraceOptions.DateTime;
-            traceSource.Listeners.Add(listener);
-            return this.Subscribe(new TraceSourceSdamEventSubscriber(traceSource));
-        }
-
-        /// <summary>
         /// Configures the server settings.
         /// </summary>
         /// <param name="configurator">The server settings configurator delegate.</param>
@@ -193,12 +160,7 @@ namespace MongoDB.Driver.Core.Configuration
             return this;
         }
 
-        /// <summary>
-        /// Registers a stream factory wrapper.
-        /// </summary>
-        /// <param name="wrapper">The stream factory wrapper.</param>
-        /// <returns>A reconfigured cluster builder.</returns>
-        public ClusterBuilder RegisterStreamFactory(Func<IStreamFactory, IStreamFactory> wrapper)
+        internal ClusterBuilder RegisterStreamFactory(Func<IStreamFactory, IStreamFactory> wrapper)
         {
             Ensure.IsNotNull(wrapper, nameof(wrapper));
 
@@ -270,16 +232,8 @@ namespace MongoDB.Driver.Core.Configuration
             var connectionPoolFactory = CreateConnectionPoolFactory();
             var serverMonitorFactory = CreateServerMonitorFactory();
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            var connectionModeSwitch = _clusterSettings.ConnectionModeSwitch;
-            var connectionMode = connectionModeSwitch == ConnectionModeSwitch.UseConnectionMode ? _clusterSettings.ConnectionMode : default;
-            var directConnection = connectionModeSwitch == ConnectionModeSwitch.UseDirectConnection ? _clusterSettings.DirectConnection : default;
-#pragma warning restore CS0618 // Type or member is obsolete
-
             return new ServerFactory(
-                connectionMode,
-                connectionModeSwitch,
-                directConnection,
+                _clusterSettings.DirectConnection,
                 _serverSettings,
                 connectionPoolFactory,
                 serverMonitorFactory,
@@ -291,7 +245,7 @@ namespace MongoDB.Driver.Core.Configuration
         private IServerMonitorFactory CreateServerMonitorFactory()
         {
             var serverMonitorConnectionSettings = _connectionSettings
-                .With(authenticatorFactories: new IAuthenticatorFactory[] { });
+                .With(authenticatorFactory: null);
 
             var heartbeatConnectTimeout = _tcpStreamSettings.ConnectTimeout;
             if (heartbeatConnectTimeout == TimeSpan.Zero || heartbeatConnectTimeout == Timeout.InfiniteTimeSpan)

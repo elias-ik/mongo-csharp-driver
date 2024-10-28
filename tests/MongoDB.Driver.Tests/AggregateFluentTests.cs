@@ -1359,7 +1359,7 @@ namespace MongoDB.Driver.Tests
         {
             var serializerRegistry = BsonSerializer.SerializerRegistry;
             var inputSerializer = serializerRegistry.GetSerializer<TInput>();
-            return pipeline.Render(new(inputSerializer, serializerRegistry));
+            return pipeline.Render(new(inputSerializer, serializerRegistry, translationOptions: null));
         }
 
         private List<IRenderedPipelineStageDefinition> RenderStages(
@@ -1380,6 +1380,8 @@ namespace MongoDB.Driver.Tests
         }
 
         // nested types
+        [BsonDiscriminator(RootClass = true)]
+        [BsonKnownTypes(typeof(D))]
         public class C
         {
             public int X;

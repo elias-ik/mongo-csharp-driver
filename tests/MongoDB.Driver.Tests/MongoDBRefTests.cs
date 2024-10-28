@@ -17,6 +17,7 @@ using System;
 using System.Linq;
 using FluentAssertions;
 using MongoDB.Bson;
+using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.TestHelpers;
 using MongoDB.TestHelpers.XunitExtensions;
@@ -37,7 +38,7 @@ namespace MongoDB.Driver.Tests
         {
             var id = ObjectId.GenerateNewId();
             var obj = new C { Id = id, DBRef = null };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : null }";
             expected = expected.Replace("#id", id.ToString());
             expected = expected.Replace("'", "\"");
@@ -55,7 +56,7 @@ namespace MongoDB.Driver.Tests
             var dateTime = BsonConstants.UnixEpoch; ;
             var dbRef = new MongoDBRef("collection", dateTime);
             var obj = new C { Id = id, DBRef = dbRef };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : { '$ref' : 'collection', '$id' : ISODate('1970-01-01T00:00:00Z') } }";
             expected = expected.Replace("#id", id.ToString());
             expected = expected.Replace("'", "\"");
@@ -73,7 +74,7 @@ namespace MongoDB.Driver.Tests
             var refId = new BsonDocument { { "x", 1 }, { "y", 2 } };
             var dbRef = new MongoDBRef("collection", refId);
             var obj = new C { Id = id, DBRef = dbRef };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : { '$ref' : 'collection', '$id' : { 'x' : 1, 'y' : 2 } } }";
             expected = expected.Replace("#id", id.ToString());
             expected = expected.Replace("'", "\"");
@@ -159,58 +160,13 @@ namespace MongoDB.Driver.Tests
             Assert.Equal(a1.GetHashCode(), a2.GetHashCode());
         }
 
-        [Theory]
-        [ParameterAttributeData]
-        [ResetGuidModeAfterTest]
-        public void TestGuidRefId(
-            [ClassValues(typeof(GuidModeValues))] GuidMode mode)
-        {
-            mode.Set();
-
-#pragma warning disable 618
-            var guid = Guid.NewGuid();
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2 && BsonDefaults.GuidRepresentation == GuidRepresentation.Unspecified ||
-                BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V3)
-            {
-                var exception = Record.Exception(() => new MongoDBRef("collection", guid));
-                exception.Should().BeOfType<InvalidOperationException>();
-            }
-            else
-            {
-                var id = ObjectId.GenerateNewId();
-                var dbRef = new MongoDBRef("collection", guid);
-                var obj = new C { Id = id, DBRef = dbRef };
-                var json = obj.ToJson();
-                var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : { '$ref' : 'collection', '$id' : #uuidConstructorName('#guid') } }";
-                expected = expected.Replace("#id", id.ToString());
-                string uuidConstructorName;
-                switch (BsonDefaults.GuidRepresentation)
-                {
-                    case GuidRepresentation.CSharpLegacy: uuidConstructorName = "CSUUID"; break;
-                    case GuidRepresentation.JavaLegacy: uuidConstructorName = "JUUID"; break;
-                    case GuidRepresentation.PythonLegacy: uuidConstructorName = "PYUUID"; break;
-                    case GuidRepresentation.Standard: uuidConstructorName = "UUID"; break;
-                    default: throw new Exception("Invalid GuidRepresentation.");
-                };
-                expected = expected.Replace("#uuidConstructorName", uuidConstructorName);
-                expected = expected.Replace("#guid", guid.ToString());
-                expected = expected.Replace("'", "\"");
-                Assert.Equal(expected, json);
-
-                var bson = obj.ToBson();
-                var rehydrated = BsonSerializer.Deserialize<C>(bson);
-                Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-            }
-#pragma warning restore 618
-        }
-
         [Fact]
         public void TestInt32RefId()
         {
             var id = ObjectId.GenerateNewId();
             var dbRef = new MongoDBRef("collection", 1);
             var obj = new C { Id = id, DBRef = dbRef };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : { '$ref' : 'collection', '$id' : 1 } }";
             expected = expected.Replace("#id", id.ToString());
             expected = expected.Replace("'", "\"");
@@ -227,7 +183,7 @@ namespace MongoDB.Driver.Tests
             var id = ObjectId.GenerateNewId();
             var dbRef = new MongoDBRef("collection", 123456789012345L);
             var obj = new C { Id = id, DBRef = dbRef };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : { '$ref' : 'collection', '$id' : NumberLong('123456789012345') } }";
             expected = expected.Replace("#id", id.ToString());
             expected = expected.Replace("'", "\"");
@@ -245,7 +201,7 @@ namespace MongoDB.Driver.Tests
             var refId = ObjectId.GenerateNewId();
             var dbRef = new MongoDBRef("collection", refId);
             var obj = new C { Id = id, DBRef = dbRef };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : { '$ref' : 'collection', '$id' : ObjectId('#ref') } }";
             expected = expected.Replace("#id", id.ToString());
             expected = expected.Replace("#ref", refId.ToString());
@@ -263,7 +219,7 @@ namespace MongoDB.Driver.Tests
             var id = ObjectId.GenerateNewId();
             var dbRef = new MongoDBRef("collection", "abc");
             var obj = new C { Id = id, DBRef = dbRef };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : { '$ref' : 'collection', '$id' : 'abc' } }";
             expected = expected.Replace("#id", id.ToString());
             expected = expected.Replace("'", "\"");
@@ -280,7 +236,7 @@ namespace MongoDB.Driver.Tests
             var id = ObjectId.GenerateNewId();
             var dbRef = new MongoDBRef("database", "collection", ObjectId.GenerateNewId());
             var obj = new C { Id = id, DBRef = dbRef };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('#id'), 'DBRef' : { '$ref' : 'collection', '$id' : ObjectId('#ref'), '$db' : 'database' } }";
             expected = expected.Replace("#id", id.ToString());
             expected = expected.Replace("#ref", dbRef.Id.ToString());

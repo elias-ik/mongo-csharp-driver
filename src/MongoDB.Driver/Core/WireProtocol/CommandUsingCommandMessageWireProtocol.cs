@@ -1,4 +1,4 @@
-﻿/* Copyright 2018-present MongoDB Inc.
+﻿/* Copyright 2010-present MongoDB Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -33,12 +33,12 @@ using MongoDB.Driver.Core.WireProtocol.Messages.Encoders;
 
 namespace MongoDB.Driver.Core.WireProtocol
 {
-    internal class CommandUsingCommandMessageWireProtocol<TCommandResult> : IWireProtocol<TCommandResult>
+    internal sealed class CommandUsingCommandMessageWireProtocol<TCommandResult> : IWireProtocol<TCommandResult>
     {
         // private fields
         private readonly BsonDocument _additionalOptions; // TODO: can these be supported when using CommandMessage?
         private readonly BsonDocument _command;
-        private readonly List<Type1CommandMessageSection> _commandPayloads;
+        private readonly List<BatchableCommandMessageSection> _commandPayloads;
         private readonly IElementNameValidator _commandValidator; // TODO: how can this be supported when using CommandMessage?
         private readonly DatabaseNamespace _databaseNamespace;
         private readonly IBinaryDocumentFieldDecryptor _documentFieldDecryptor;
@@ -60,7 +60,7 @@ namespace MongoDB.Driver.Core.WireProtocol
             ReadPreference readPreference,
             DatabaseNamespace databaseNamespace,
             BsonDocument command,
-            IEnumerable<Type1CommandMessageSection> commandPayloads,
+            IEnumerable<BatchableCommandMessageSection> commandPayloads,
             IElementNameValidator commandValidator,
             BsonDocument additionalOptions,
             CommandResponseHandling responseHandling,
@@ -199,7 +199,7 @@ namespace MongoDB.Driver.Core.WireProtocol
             }
             else
             {
-                var messageFieldDecryptor = new CommandMessageFieldDecryptor(_documentFieldDecryptor, _messageEncoderSettings);
+                var messageFieldDecryptor = new CommandMessageFieldDecryptor(_documentFieldDecryptor);
                 return messageFieldDecryptor.DecryptFields(encryptedResponseMessage, cancellationToken);
             }
         }
@@ -212,7 +212,7 @@ namespace MongoDB.Driver.Core.WireProtocol
             }
             else
             {
-                var messageFieldDecryptor = new CommandMessageFieldDecryptor(_documentFieldDecryptor, _messageEncoderSettings);
+                var messageFieldDecryptor = new CommandMessageFieldDecryptor(_documentFieldDecryptor);
                 return await messageFieldDecryptor.DecryptFieldsAsync(encryptedResponseMessage, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -340,13 +340,6 @@ namespace MongoDB.Driver.Core.WireProtocol
             {
                 AddIfNotAlreadyAdded("$clusterTime", _session.ClusterTime);
             }
-#pragma warning disable 618
-            Action<BsonWriterSettings> writerSettingsConfigurator = null;
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                writerSettingsConfigurator = s => s.GuidRepresentation = GuidRepresentation.Unspecified;
-            }
-#pragma warning restore 618
 
             _session.AboutToSendCommand();
             if (_session.IsInTransaction)
@@ -377,7 +370,7 @@ namespace MongoDB.Driver.Core.WireProtocol
                 }
             }
 
-            var elementAppendingSerializer = new ElementAppendingSerializer<BsonDocument>(BsonDocumentSerializer.Instance, extraElements, writerSettingsConfigurator);
+            var elementAppendingSerializer = new ElementAppendingSerializer<BsonDocument>(BsonDocumentSerializer.Instance, extraElements);
             return new Type0CommandMessageSection<BsonDocument>(_command, elementAppendingSerializer);
 
             void AddIfNotAlreadyAdded(string key, BsonValue value)
@@ -436,12 +429,6 @@ namespace MongoDB.Driver.Core.WireProtocol
                 if (_messageEncoderSettings != null)
                 {
                     binaryReaderSettings.Encoding = _messageEncoderSettings.GetOrDefault<UTF8Encoding>(MessageEncoderSettingsName.ReadEncoding, Utf8Encodings.Strict);
-#pragma warning disable 618
-                    if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-                    {
-                        binaryReaderSettings.GuidRepresentation = _messageEncoderSettings.GetOrDefault<GuidRepresentation>(MessageEncoderSettingsName.GuidRepresentation, GuidRepresentation.CSharpLegacy);
-                    }
-#pragma warning restore 618
                 };
 
                 BsonValue clusterTime;

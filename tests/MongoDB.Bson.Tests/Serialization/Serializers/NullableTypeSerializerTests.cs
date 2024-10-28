@@ -66,7 +66,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestAllNulls()
         {
             C c = new C();
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -79,7 +79,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestBoolean()
         {
             C c = new C { Boolean = true };
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'Boolean' : null", "'Boolean' : true").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -92,7 +92,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestDateTime()
         {
             C c = new C { DateTime = BsonConstants.UnixEpoch };
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'DateTime' : null", "'DateTime' : ISODate('1970-01-01T00:00:00Z')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -105,7 +105,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestDateOnly()
         {
             C c = new C { DateOnly = BsonConstants.UnixEpoch };
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'DateOnly' : null", "'DateOnly' : ISODate('1970-01-01T00:00:00Z')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -118,7 +118,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestDouble()
         {
             C c = new C { Double = 1.5 };
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'Double' : null", "'Double' : 1.5").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -131,7 +131,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestEnum()
         {
             var c = new C { Enum = ConsoleColor.Red };
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'Enum' : null", "'Enum' : 'Red'").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -140,49 +140,19 @@ namespace MongoDB.Bson.Tests.Serialization
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
         }
 
-        [Theory]
-        [ParameterAttributeData]
-        [ResetGuidModeAfterTest]
-        public void TestGuid(
-            [ClassValues(typeof(GuidModeValues))] GuidMode mode)
+        [Fact]
+        public void TestGuid()
         {
-            mode.Set();
-
-#pragma warning disable 618
             C c = new C { Guid = Guid.Empty };
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2 && BsonDefaults.GuidRepresentation != GuidRepresentation.Unspecified)
-            {
-                var json = c.ToJson(new JsonWriterSettings());
-                string expectedGuidJson;
-                var guidRepresentation = BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2 ? BsonDefaults.GuidRepresentation : GuidRepresentation.Unspecified;
-                switch (guidRepresentation)
-                {
-                    case GuidRepresentation.CSharpLegacy: expectedGuidJson = "CSUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.JavaLegacy: expectedGuidJson = "JUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.PythonLegacy: expectedGuidJson = "PYUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.Standard: expectedGuidJson = "UUID('00000000-0000-0000-0000-000000000000')"; break;
-                    default: throw new Exception("Unexpected GuidRepresentation.");
-                }
-                var expected = _template.Replace("'Guid' : null", $"'Guid' : {expectedGuidJson}").Replace("'", "\"");
-                Assert.Equal(expected, json);
-
-                var bson = c.ToBson(writerSettings: new BsonBinaryWriterSettings());
-                var rehydrated = BsonSerializer.Deserialize<C>(new BsonBinaryReader(new MemoryStream(bson), new BsonBinaryReaderSettings()));
-                Assert.True(bson.SequenceEqual(rehydrated.ToBson(writerSettings: new BsonBinaryWriterSettings())));
-            }
-            else
-            {
-                var exception = Record.Exception(() => c.ToJson(new JsonWriterSettings()));
-                exception.Should().BeOfType<BsonSerializationException>();
-            }
-#pragma warning restore 618
+            var exception = Record.Exception(() => c.ToJson(new JsonWriterSettings()));
+            exception.Should().BeOfType<BsonSerializationException>();
         }
 
         [Fact]
         public void TestInt32()
         {
             C c = new C { Int32 = 1 };
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'Int32' : null", "'Int32' : 1").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -195,7 +165,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestInt64()
         {
             C c = new C { Int64 = 2 };
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'Int64' : null", "'Int64' : NumberLong(2)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -208,7 +178,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestObjectId()
         {
             C c = new C { ObjectId = ObjectId.Empty };
-            var json = c.ToJson();
+            var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = _template.Replace("'ObjectId' : null", "'ObjectId' : ObjectId('000000000000000000000000')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -220,7 +190,7 @@ namespace MongoDB.Bson.Tests.Serialization
         //[Fact]
         //public void TestStruct() {
         //    C c = new C { Struct = new Struct { StructP = "x" } };
-        //    var json = c.ToJson();
+        //    var json = c.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
         //    var expected = template.Replace("'Struct' : null", "'Struct' : { 'StructP' : 'x' }").Replace("'", "\"");
         //    Assert.Equal(expected, json);
 

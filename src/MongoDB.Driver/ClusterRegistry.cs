@@ -13,14 +13,13 @@
 * limitations under the License.
 */
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
-using MongoDB.Driver.Core.Authentication;
+using MongoDB.Driver.Authentication;
 using MongoDB.Driver.Core.Clusters;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Misc;
@@ -63,7 +62,6 @@ namespace MongoDB.Driver
                 .ConfigureConnectionPool(settings => ConfigureConnectionPool(settings, clusterKey))
                 .ConfigureConnection(settings => ConfigureConnection(settings, clusterKey))
                 .ConfigureTcp(settings => ConfigureTcp(settings, clusterKey))
-                .ConfigureSdamLogging(settings => ConfigureSdamLogging(settings, clusterKey))
                 .ConfigureLoggingSettings(_ => clusterKey.LoggingSettings);
 #pragma warning restore CS0618 // Type or member is obsolete
 
@@ -85,15 +83,9 @@ namespace MongoDB.Driver
 
         private ClusterSettings ConfigureCluster(ClusterSettings settings, ClusterKey clusterKey)
         {
-#pragma warning disable CS0618 // Type or member is obsolete
             var endPoints = clusterKey.Servers.Select(s => EndPointHelper.Parse(s.ToString()));
-            var connectionModeSwitch = clusterKey.ConnectionModeSwitch;
-            Optional<ClusterConnectionMode> connectionMode = connectionModeSwitch == ConnectionModeSwitch.UseConnectionMode ? clusterKey.ConnectionMode.ToCore() : default;
-            Optional<bool?> directConnection = connectionModeSwitch == ConnectionModeSwitch.UseDirectConnection ? clusterKey.DirectConnection : default;
             return settings.With(
-                connectionMode: connectionMode,
-                connectionModeSwitch: connectionModeSwitch,
-                directConnection: directConnection,
+                directConnection: clusterKey.DirectConnection,
                 cryptClientSettings: clusterKey.CryptClientSettings,
                 endPoints: Optional.Enumerable(endPoints),
                 loadBalanced: clusterKey.LoadBalanced,
@@ -103,7 +95,6 @@ namespace MongoDB.Driver
                 serverApi: clusterKey.ServerApi,
                 serverSelectionTimeout: clusterKey.ServerSelectionTimeout,
                 scheme: clusterKey.Scheme);
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private ConnectionPoolSettings ConfigureConnectionPool(ConnectionPoolSettings settings, ClusterKey clusterKey)
@@ -120,31 +111,21 @@ namespace MongoDB.Driver
         private ConnectionSettings ConfigureConnection(ConnectionSettings settings, ClusterKey clusterKey)
         {
             var endPoints = clusterKey.Servers.Select(s => new DnsEndPoint(s.Host, s.Port)).ToArray();
-            var authenticatorFactories = Array.Empty<IAuthenticatorFactory>();
+            IAuthenticatorFactory authenticatorFactory = null;
 
             if (clusterKey.Credential != null)
             {
-                authenticatorFactories = new[]
-                {
-                    new AuthenticatorFactory(() => clusterKey.Credential.ToAuthenticator(endPoints, clusterKey.ServerApi))
-                };
+                authenticatorFactory = new AuthenticatorFactory(() => clusterKey.Credential.ToAuthenticator(endPoints, clusterKey.ServerApi));
             }
 
             return settings.With(
-                authenticatorFactories: Optional.Enumerable<IAuthenticatorFactory>(authenticatorFactories),
+                authenticatorFactory: Optional.Create(authenticatorFactory),
                 compressors: Optional.Enumerable(clusterKey.Compressors),
                 libraryInfo: clusterKey.LibraryInfo,
                 loadBalanced: clusterKey.LoadBalanced,
                 maxIdleTime: clusterKey.MaxConnectionIdleTime,
                 maxLifeTime: clusterKey.MaxConnectionLifeTime,
                 applicationName: clusterKey.ApplicationName);
-        }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-        private SdamLoggingSettings ConfigureSdamLogging(SdamLoggingSettings settings, ClusterKey clusterKey)
-#pragma warning restore CS0618 // Type or member is obsolete
-        {
-            return settings.With(logFilename: clusterKey.SdamLogFilename);
         }
 
         private ServerSettings ConfigureServer(ServerSettings settings, ClusterKey clusterKey)

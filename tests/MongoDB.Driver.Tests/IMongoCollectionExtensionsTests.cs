@@ -20,7 +20,6 @@ using System.Linq.Expressions;
 using System.Threading;
 using FluentAssertions;
 using MongoDB.Bson;
-using MongoDB.Driver.Linq;
 using MongoDB.Driver.Tests.Linq.Linq3Implementation;
 using MongoDB.TestHelpers.XunitExtensions;
 using Moq;
@@ -65,7 +64,7 @@ namespace MongoDB.Driver.Tests
             var session = withSession ? Mock.Of<IClientSessionHandle>() : null;
             var options = new AggregateOptions();
 
-            IMongoQueryable<Person> result;
+            IQueryable<Person> result;
             if (withSession)
             {
                 result = collection.AsQueryable(session, options);

@@ -20,10 +20,10 @@ namespace MongoDB.Bson
         public static string Moniker =>
 #if NET472
             "net472";
-#elif NETSTANDARD2_0
-            "netstandard20";
 #elif NETSTANDARD2_1
             "netstandard21";
+#elif NET6_0
+            "net60";
 #endif
     }
 }

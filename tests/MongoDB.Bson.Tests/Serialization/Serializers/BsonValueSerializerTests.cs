@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using FluentAssertions;
 using MongoDB.Bson.IO;
@@ -30,17 +31,6 @@ namespace MongoDB.Bson.Tests.Serialization
 {
     public class BsonValueSerializerTests
     {
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonValueSerializer();
-            var y = new DerivedFromBsonValueSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
-        }
-
         [Fact]
         public void Equals_null_should_return_false()
         {
@@ -92,10 +82,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonValueSerializer : BsonValueSerializer
-        {
-        }
     }
 
     public class BsonArraySerializerTests
@@ -118,7 +104,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -133,7 +119,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestEmpty()
         {
             var obj = new TestClass(new BsonArray());
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "[]").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -146,24 +132,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNotEmpty()
         {
             var obj = new TestClass(new BsonArray { 1, 2 });
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "[1, 2]").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonArraySerializer();
-            var y = new DerivedFromBsonArraySerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -217,10 +192,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonArraySerializer : BsonArraySerializer
-        {
-        }
     }
 
     public class BsonBinaryGuidSerializerTests
@@ -243,7 +214,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -252,87 +223,6 @@ namespace MongoDB.Bson.Tests.Serialization
             Assert.Equal(null, rehydrated.B);
             Assert.Equal(null, rehydrated.V);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Theory]
-        [ParameterAttributeData]
-        [ResetGuidModeAfterTest]
-        public void TestEmpty(
-            [ClassValues(typeof(GuidModeValues))] GuidMode mode)
-        {
-            mode.Set();
-
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2 && BsonDefaults.GuidRepresentation != GuidRepresentation.Unspecified)
-            {
-                var obj = new TestClass(Guid.Empty);
-
-                string expectedGuidJson;
-                var guidRepresentation = BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2 ? BsonDefaults.GuidRepresentation : GuidRepresentation.Unspecified;
-                switch (guidRepresentation)
-                {
-                    case GuidRepresentation.CSharpLegacy: expectedGuidJson = "CSUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.JavaLegacy: expectedGuidJson = "JUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.PythonLegacy: expectedGuidJson = "PYUUID('00000000-0000-0000-0000-000000000000')"; break;
-                    case GuidRepresentation.Standard: expectedGuidJson = "UUID('00000000-0000-0000-0000-000000000000')"; break;
-                    default: throw new Exception("Unexpected GuidRepresentation.");
-                }
-
-                var json = obj.ToJson(new JsonWriterSettings());
-                var expected = "{ 'B' : #, 'V' : # }".Replace("#", expectedGuidJson).Replace("'", "\"");
-                Assert.Equal(expected, json);
-
-                var bson = obj.ToBson();
-                var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
-                Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-            }
-            else
-            {
-                var exception = Record.Exception(() => new TestClass(Guid.Empty));
-                exception.Should().BeOfType<InvalidOperationException>();
-            }
-#pragma warning disable 618
-        }
-
-        [Theory]
-        [ParameterAttributeData]
-        [ResetGuidModeAfterTest]
-        public void TestNew(
-            [ClassValues(typeof(GuidModeValues))] GuidMode mode)
-        {
-            mode.Set();
-
-#pragma warning disable 618
-            var guid = Guid.NewGuid();
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2 && BsonDefaults.GuidRepresentation != GuidRepresentation.Unspecified)
-            {
-                var obj = new TestClass(guid);
-
-                string expectedGuidJson;
-                var guidRepresentation = BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2 ? BsonDefaults.GuidRepresentation : GuidRepresentation.Unspecified;
-                switch (guidRepresentation)
-                {
-                    case GuidRepresentation.CSharpLegacy: expectedGuidJson = $"CSUUID('{guid.ToString()}')"; break;
-                    case GuidRepresentation.JavaLegacy: expectedGuidJson = $"JUUID('{guid.ToString()}')"; break;
-                    case GuidRepresentation.PythonLegacy: expectedGuidJson = $"PYUUID('{guid.ToString()}')"; break;
-                    case GuidRepresentation.Standard: expectedGuidJson = $"UUID('{guid.ToString()}')"; break;
-                    default: throw new Exception("Unexpected GuidRepresentation.");
-                }
-
-                var json = obj.ToJson(new JsonWriterSettings());
-                var expected = "{ 'B' : #, 'V' : # }".Replace("#", expectedGuidJson).Replace("'", "\"");
-                Assert.Equal(expected, json);
-
-                var bson = obj.ToBson();
-                var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
-                Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-            }
-            else
-            {
-                var exception = Record.Exception(() => new TestClass(guid));
-                exception.Should().BeOfType<InvalidOperationException>();
-            }
-#pragma warning disable 618
         }
     }
 
@@ -356,7 +246,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -371,7 +261,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestFalse()
         {
             var obj = new TestClass(false);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "false").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -384,24 +274,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestTrue()
         {
             var obj = new TestClass(true);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "true").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonBooleanSerializer();
-            var y = new DerivedFromBsonBooleanSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -455,10 +334,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonBooleanSerializer : BsonBooleanSerializer
-        {
-        }
     }
 
     public class BsonDateTimeSerializerTests
@@ -481,7 +356,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -496,7 +371,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMinBson()
         {
             var obj = new TestClass(new BsonDateTime(long.MinValue));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "new Date(-9223372036854775808)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -509,7 +384,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMinLocal()
         {
             var obj = new TestClass(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Local));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "ISODate('0001-01-01T00:00:00Z')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -522,7 +397,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMinUnspecified()
         {
             var obj = new TestClass(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Unspecified));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "ISODate('0001-01-01T00:00:00Z')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -535,7 +410,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMinUtc()
         {
             var obj = new TestClass(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "ISODate('0001-01-01T00:00:00Z')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -548,7 +423,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMaxBson()
         {
             var obj = new TestClass(new BsonDateTime(long.MaxValue));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "new Date(9223372036854775807)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -561,7 +436,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMaxLocal()
         {
             var obj = new TestClass(DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Local));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "ISODate('9999-12-31T23:59:59.999Z')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -574,7 +449,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMaxUnspecified()
         {
             var obj = new TestClass(DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Unspecified));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "ISODate('9999-12-31T23:59:59.999Z')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -587,7 +462,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMaxUtc()
         {
             var obj = new TestClass(DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "ISODate('9999-12-31T23:59:59.999Z')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -600,9 +475,8 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestLocal()
         {
             var obj = new TestClass(new DateTime(2010, 10, 08, 13, 30, 0, DateTimeKind.Local));
-            var isoDate = string.Format("ISODate(\"{0}\")", obj.V.ToUniversalTime().ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ"));
-            long milliseconds = (long)(obj.V.ToUniversalTime() - BsonConstants.UnixEpoch).TotalMilliseconds;
-            var json = obj.ToJson();
+            var isoDate = $"ISODate(\"{obj.V.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ", CultureInfo.InvariantCulture)}\")";
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", isoDate).Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -615,8 +489,8 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestUnspecified()
         {
             var obj = new TestClass(new DateTime(2010, 10, 08, 13, 30, 0, DateTimeKind.Unspecified));
-            var isoDate = string.Format("ISODate(\"{0}\")", obj.V.ToUniversalTime().ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ"));
-            var json = obj.ToJson();
+            var isoDate = string.Format("ISODate(\"{0}\")", obj.V.ToUniversalTime().ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ", CultureInfo.InvariantCulture));
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", isoDate).Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -629,25 +503,14 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestUtc()
         {
             var obj = new TestClass(new DateTime(2010, 10, 08, 13, 30, 0, DateTimeKind.Utc));
-            var isoDate = string.Format("ISODate(\"{0}\")", obj.V.ToUniversalTime().ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ"));
-            var json = obj.ToJson();
+            var isoDate = string.Format("ISODate(\"{0}\")", obj.V.ToUniversalTime().ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ", CultureInfo.InvariantCulture));
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", isoDate).Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonDateTimeSerializer();
-            var y = new DerivedFromBsonDateTimeSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -701,10 +564,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonDateTimeSerializer : BsonDateTimeSerializer
-        {
-        }
     }
 
     public class BsonDocumentSerializerTests
@@ -727,7 +586,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ \'_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -740,7 +599,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestEmpty()
         {
             var obj = new TestClass(new BsonDocument());
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -758,24 +617,13 @@ namespace MongoDB.Bson.Tests.Serialization
                     { "A", 1 },
                     { "B", 2 }
                 });
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ 'A' : 1, 'B' : 2 }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonDocumentSerializer();
-            var y = new DerivedFromBsonDocumentSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -830,10 +678,6 @@ namespace MongoDB.Bson.Tests.Serialization
             result.Should().Be(0);
         }
 
-        public class DerivedFromBsonDocumentSerializer : BsonDocumentSerializer
-        {
-        }
-
         [Fact]
         public void GetDocumentId_should_return_expected_result_when_id_is_missing()
         {
@@ -878,27 +722,16 @@ namespace MongoDB.Bson.Tests.Serialization
 
         public static IEnumerable<object[]> GetDocumentId_should_return_expected_result_when_id_is_binary_data_guid_MemberData()
         {
-            var data = new TheoryData<GuidRepresentationMode, GuidRepresentation, GuidRepresentation>();
+            var data = new TheoryData<GuidRepresentation>();
 
-            foreach (var defaultGuidRepresentationMode in EnumHelper.GetValues<GuidRepresentationMode>())
+            foreach (var idGuidRepresentation in EnumHelper.GetValues<GuidRepresentation>())
             {
-                foreach (var defaultGuidRepresentation in EnumHelper.GetValues<GuidRepresentation>())
+                if (idGuidRepresentation == GuidRepresentation.Unspecified)
                 {
-                    if (defaultGuidRepresentationMode == GuidRepresentationMode.V3 && defaultGuidRepresentation != GuidRepresentation.Unspecified)
-                    {
-                        continue;
-                    }
-
-                    foreach (var idGuidRepresentation in EnumHelper.GetValues<GuidRepresentation>())
-                    {
-                        if (idGuidRepresentation == GuidRepresentation.Unspecified)
-                        {
-                            continue;
-                        }
-
-                        data.Add(defaultGuidRepresentationMode, defaultGuidRepresentation, idGuidRepresentation);
-                    }
+                    continue;
                 }
+
+                data.Add(idGuidRepresentation);
             }
 
             return data;
@@ -906,14 +739,9 @@ namespace MongoDB.Bson.Tests.Serialization
 
         [Theory]
         [MemberData(nameof(GetDocumentId_should_return_expected_result_when_id_is_binary_data_guid_MemberData))]
-        [ResetGuidModeAfterTest]
         public void GetDocumentId_should_return_expected_result_when_id_is_binary_data_guid(
-            GuidRepresentationMode defaultGuidRepresentationMode,
-            GuidRepresentation defaultGuidRepresentation,
             GuidRepresentation idGuidRepresentation)
         {
-            GuidMode.Set(defaultGuidRepresentationMode, defaultGuidRepresentation);
-
             var subject = new BsonDocumentSerializer();
             var guid = Guid.Parse("01020304-0506-0708-090a-0b0c0d0e0f10");
             var document = new BsonDocument("_id", new BsonBinaryData(guid, idGuidRepresentation));
@@ -923,7 +751,7 @@ namespace MongoDB.Bson.Tests.Serialization
             result.Should().BeTrue();
             id.Should().Be(document["_id"]);
             idNominalType.Should().Be(typeof(BsonValue));
-            if (defaultGuidRepresentationMode == GuidRepresentationMode.V2 || idGuidRepresentation == GuidRepresentation.Standard)
+            if (idGuidRepresentation == GuidRepresentation.Standard)
             {
                 var guidGenerator = idGenerator.Should().BeOfType<BsonBinaryDataGuidGenerator>().Subject;
                 guidGenerator.GuidRepresentation.Should().Be(idGuidRepresentation);
@@ -955,7 +783,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -970,7 +798,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestEmpty()
         {
             var obj = new TestClass(new BsonDocumentWrapper(new BsonDocument()));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -999,7 +827,7 @@ namespace MongoDB.Bson.Tests.Serialization
                         { "A", 1 },
                         { "B", 2 }
                     }));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ 'A' : 1, 'B' : 2 }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1016,17 +844,6 @@ namespace MongoDB.Bson.Tests.Serialization
                 Assert.IsType<NotSupportedException>(ex.InnerException);
                 Assert.Equal(expectedMessage, ex.Message.Substring(0, ex.Message.IndexOf(':')));
             }
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonDocumentWrapperSerializer();
-            var y = new DerivedFromBsonDocumentWrapperSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -1080,10 +897,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonDocumentWrapperSerializer : BsonDocumentWrapperSerializer
-        {
-        }
     }
 
     public class BsonDoubleSerializerTests
@@ -1106,7 +919,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1121,7 +934,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMin()
         {
             var obj = new TestClass(double.MinValue);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "-1.7976931348623157E+308").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1134,7 +947,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMinusOne()
         {
             var obj = new TestClass(-1.0);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "-1.0").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1147,7 +960,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestZero()
         {
             var obj = new TestClass(0.0);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "0.0").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1160,7 +973,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestOne()
         {
             var obj = new TestClass(1.0);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "1.0").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1173,7 +986,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMax()
         {
             var obj = new TestClass(double.MaxValue);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "1.7976931348623157E+308").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1186,7 +999,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNaN()
         {
             var obj = new TestClass(double.NaN);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "NaN").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1199,7 +1012,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNegativeInfinity()
         {
             var obj = new TestClass(double.NegativeInfinity);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "-Infinity").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1212,24 +1025,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestPositiveInfinity()
         {
             var obj = new TestClass(double.PositiveInfinity);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "Infinity").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonDoubleSerializer();
-            var y = new DerivedFromBsonDoubleSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -1283,10 +1085,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonDoubleSerializer : BsonDoubleSerializer
-        {
-        }
     }
 
     public class BsonInt32SerializerTests
@@ -1309,7 +1107,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1324,7 +1122,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMin()
         {
             var obj = new TestClass(int.MinValue);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", int.MinValue.ToString()).Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1337,7 +1135,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMinusOne()
         {
             var obj = new TestClass(-1);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "-1").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1350,7 +1148,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestZero()
         {
             var obj = new TestClass(0);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "0").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1363,7 +1161,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestOne()
         {
             var obj = new TestClass(1);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "1").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1376,24 +1174,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMax()
         {
             var obj = new TestClass(int.MaxValue);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", int.MaxValue.ToString()).Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonInt32Serializer();
-            var y = new DerivedFromBsonInt32Serializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -1447,10 +1234,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonInt32Serializer : BsonInt32Serializer
-        {
-        }
     }
 
     public class BsonInt64SerializerTests
@@ -1473,7 +1256,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1488,7 +1271,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMin()
         {
             var obj = new TestClass(long.MinValue);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "NumberLong('-9223372036854775808')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1501,7 +1284,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMinusOne()
         {
             var obj = new TestClass(-1);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "NumberLong(-1)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1514,7 +1297,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestZero()
         {
             var obj = new TestClass(0);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "NumberLong(0)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1527,7 +1310,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestOne()
         {
             var obj = new TestClass(1);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "NumberLong(1)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1540,24 +1323,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMax()
         {
             var obj = new TestClass(long.MaxValue);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "NumberLong('9223372036854775807')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonInt64Serializer();
-            var y = new DerivedFromBsonInt64Serializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -1611,10 +1383,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonInt64Serializer : BsonInt64Serializer
-        {
-        }
     }
 
     public class BsonJavaScriptSerializerTests
@@ -1637,7 +1405,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1652,24 +1420,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNotNull()
         {
             var obj = new TestClass("this.age === 21");
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '$code' : 'this.age === 21' }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonJavaScriptSerializer();
-            var y = new DerivedFromBsonJavaScriptSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -1723,10 +1480,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonJavaScriptSerializer : BsonJavaScriptSerializer
-        {
-        }
     }
 
     public class BsonJavaScriptWithScopeSerializerTests
@@ -1749,7 +1502,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1765,24 +1518,13 @@ namespace MongoDB.Bson.Tests.Serialization
         {
             var scope = new BsonDocument("x", 21);
             var obj = new TestClass(new BsonJavaScriptWithScope("this.age === 21", scope));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '$code' : 'this.age === 21', '$scope' : { 'x' : 21 } }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonJavaScriptWithScopeSerializer();
-            var y = new DerivedFromBsonJavaScriptWithScopeSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -1836,10 +1578,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonJavaScriptWithScopeSerializer : BsonJavaScriptWithScopeSerializer
-        {
-        }
     }
 
     public class BsonMaxKeySerializerTests
@@ -1862,7 +1600,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1877,7 +1615,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestValue()
         {
             var obj = new TestClass(BsonMaxKey.Value);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "MaxKey").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1885,17 +1623,6 @@ namespace MongoDB.Bson.Tests.Serialization
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.Same(obj.V, rehydrated.V);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonMaxKeySerializer();
-            var y = new DerivedFromBsonMaxKeySerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -1949,10 +1676,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonMaxKeySerializer : BsonMaxKeySerializer
-        {
-        }
     }
 
     public class BsonMinKeySerializerTests
@@ -1975,7 +1698,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1990,7 +1713,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestValue()
         {
             var obj = new TestClass(BsonMinKey.Value);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "MinKey").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -1998,17 +1721,6 @@ namespace MongoDB.Bson.Tests.Serialization
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.Same(obj.V, rehydrated.V);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonMinKeySerializer();
-            var y = new DerivedFromBsonMinKeySerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -2062,10 +1774,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonMinKeySerializer : BsonMinKeySerializer
-        {
-        }
     }
 
     public class BsonNullSerializerTests
@@ -2088,7 +1796,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2109,7 +1817,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestValue()
         {
             var obj = new TestClass(BsonNull.Value);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "null").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2117,17 +1825,6 @@ namespace MongoDB.Bson.Tests.Serialization
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.Same(obj.V, rehydrated.V);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonNullSerializer();
-            var y = new DerivedFromBsonNullSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -2181,10 +1878,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonNullSerializer : BsonNullSerializer
-        {
-        }
     }
 
     public class BsonObjectIdSerializerTests
@@ -2207,7 +1900,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2221,27 +1914,14 @@ namespace MongoDB.Bson.Tests.Serialization
         [Fact]
         public void TestNotNull()
         {
-#pragma warning disable 618
-            var obj = new TestClass(new ObjectId(1, 2, 3, 4));
-#pragma warning restore 618
-            var json = obj.ToJson();
+            var obj = new TestClass(new ObjectId("000000010000020003000004"));
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "ObjectId('000000010000020003000004')").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonObjectIdSerializer();
-            var y = new DerivedFromBsonObjectIdSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -2295,10 +1975,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonObjectIdSerializer : BsonObjectIdSerializer
-        {
-        }
     }
 
     public class BsonRegularExpressionSerializerTests
@@ -2321,7 +1997,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2336,7 +2012,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestWithoutOptions()
         {
             var obj = new TestClass(new BsonRegularExpression("abc"));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "/abc/").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2349,24 +2025,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestWithOptions()
         {
             var obj = new TestClass(new BsonRegularExpression("abc", "imxs"));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "/abc/imsx").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonRegularExpressionSerializer();
-            var y = new DerivedFromBsonRegularExpressionSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -2420,10 +2085,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonRegularExpressionSerializer : BsonRegularExpressionSerializer
-        {
-        }
     }
 
     public class BsonStringObjectIdTests
@@ -2439,7 +2100,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new C { Id = null, N = 1 };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : null, 'N' : 1 }".Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2453,7 +2114,7 @@ namespace MongoDB.Bson.Tests.Serialization
         {
             var id = ObjectId.Parse("123456789012345678901234");
             var obj = new C { Id = id.ToString(), N = 1 };
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ '_id' : ObjectId('123456789012345678901234'), 'N' : 1 }".Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2483,7 +2144,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2498,7 +2159,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestEmpty()
         {
             var obj = new TestClass("");
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "''").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2511,24 +2172,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestHelloWorld()
         {
             var obj = new TestClass("Hello World");
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "'Hello World'").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-        
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonStringSerializer();
-            var y = new DerivedFromBsonStringSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -2582,10 +2232,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonStringSerializer : BsonStringSerializer
-        {
-        }
     }
 
     public class BsonSymbolSerializerTests
@@ -2608,7 +2254,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2623,7 +2269,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestEmpty()
         {
             var obj = new TestClass("");
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '$symbol' : '' }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2637,7 +2283,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestHelloWorld()
         {
             var obj = new TestClass("Hello World");
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '$symbol' : 'Hello World' }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2645,17 +2291,6 @@ namespace MongoDB.Bson.Tests.Serialization
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.Same(obj.V, rehydrated.V);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonSymbolSerializer();
-            var y = new DerivedFromBsonSymbolSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -2709,10 +2344,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonSymbolSerializer : BsonSymbolSerializer
-        {
-        }
     }
 
     public class BsonTimestampSerializerTests
@@ -2735,7 +2366,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2750,7 +2381,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMin()
         {
             var obj = new TestClass(new BsonTimestamp(long.MinValue));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "Timestamp(2147483648, 0)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2763,7 +2394,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMinusOne()
         {
             var obj = new TestClass(new BsonTimestamp(-1));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "Timestamp(4294967295, 4294967295)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2776,7 +2407,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestZero()
         {
             var obj = new TestClass(new BsonTimestamp(0));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "Timestamp(0, 0)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2789,7 +2420,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestOne()
         {
             var obj = new TestClass(new BsonTimestamp(1));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "Timestamp(0, 1)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2802,7 +2433,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestOneTwo()
         {
             var obj = new TestClass(new BsonTimestamp(1, 2));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "Timestamp(1, 2)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2815,24 +2446,13 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestMax()
         {
             var obj = new TestClass(new BsonTimestamp(long.MaxValue));
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "Timestamp(2147483647, 4294967295)").Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = obj.ToBson();
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonTimestampSerializer();
-            var y = new DerivedFromBsonTimestampSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -2886,10 +2506,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
             result.Should().Be(0);
         }
-
-        public class DerivedFromBsonTimestampSerializer : BsonTimestampSerializer
-        {
-        }
     }
 
     public class BsonUndefinedSerializerTests
@@ -2912,7 +2528,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestNull()
         {
             var obj = new TestClass(null);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "{ '_csharpnull' : true }").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2927,7 +2543,7 @@ namespace MongoDB.Bson.Tests.Serialization
         public void TestValue()
         {
             var obj = new TestClass(BsonUndefined.Value);
-            var json = obj.ToJson();
+            var json = obj.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'B' : #, 'V' : # }".Replace("#", "undefined").Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -2935,17 +2551,6 @@ namespace MongoDB.Bson.Tests.Serialization
             var rehydrated = BsonSerializer.Deserialize<TestClass>(bson);
             Assert.Same(obj.V, rehydrated.V);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new BsonUndefinedSerializer();
-            var y = new DerivedFromBsonUndefinedSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -2998,10 +2603,6 @@ namespace MongoDB.Bson.Tests.Serialization
             var result = x.GetHashCode();
 
             result.Should().Be(0);
-        }
-
-        public class DerivedFromBsonUndefinedSerializer : BsonUndefinedSerializer
-        {
         }
     }
 }

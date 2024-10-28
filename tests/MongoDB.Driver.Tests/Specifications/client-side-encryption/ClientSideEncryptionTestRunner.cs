@@ -66,12 +66,9 @@ namespace MongoDB.Driver.Tests.Specifications.client_side_encryption
                     // When fixing CSHARP-4606, skip fle2v2-Range tests on Mac because of: "spec wording requires skipping only "fle2-Range-<type>-Correctness" tests on macos,
                     // but we see significant performance downgrade with the rest fle2-Range tests too, so skip them as well"
                     () => testCase.Name.Contains("fle2v2"),
-                    SupportedOperatingSystem.MacOS); ;
+                    SupportedOperatingSystem.MacOS);
 
-            RequirePlatform
-                .Check()
-                .SkipWhen(() => testCase.Name.Contains("gcpKMS.json"), SupportedOperatingSystem.Linux, SupportedTargetFramework.NetStandard20) // gcp is supported starting from netstandard2.1
-                .SkipWhen(() => testCase.Name.Contains("gcpKMS.json"), SupportedOperatingSystem.MacOS, SupportedTargetFramework.NetStandard20); // gcp is supported starting from netstandard2.1
+            RequireEnvironment.Check().EnvironmentVariable("LIBMONGOCRYPT_PATH");
 
             SetupAndRunTest(testCase);
         }
@@ -122,15 +119,9 @@ namespace MongoDB.Driver.Tests.Specifications.client_side_encryption
             }
         }
 
-        protected override MongoClient CreateClientForTestSetup()
+        protected override IMongoClient CreateClientForTestSetup()
         {
             var clientSettings = DriverTestConfiguration.GetClientSettings().Clone();
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                clientSettings.GuidRepresentation = GuidRepresentation.Unspecified;
-            }
-#pragma warning restore 618
             return new MongoClient(clientSettings);
         }
 
@@ -161,7 +152,7 @@ namespace MongoDB.Driver.Tests.Specifications.client_side_encryption
             }
         }
 
-        protected override void DropCollection(MongoClient client, string databaseName, string collectionName, BsonDocument test, BsonDocument shared)
+        protected override void DropCollection(IMongoClient client, string databaseName, string collectionName, BsonDocument test, BsonDocument shared)
         {
             if (shared.TryGetValue("encrypted_fields", out var encrypted_fields))
             {

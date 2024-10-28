@@ -33,12 +33,13 @@ namespace MongoDB.Driver.Linq.Linq3Implementation.Translators.ExpressionToPipeli
 
             if (method.Is(MongoQueryableMethod.AppendStage))
             {
-                var sourceExpression = ConvertHelper.RemoveConvertToMongoQueryable(arguments[0]);
+                var sourceExpression = arguments[0];
                 var pipeline = ExpressionToPipelineTranslator.Translate(context, sourceExpression);
-                var sourceSerializer = pipeline.OutputSerializer;
+                ClientSideProjectionHelper.ThrowIfClientSideProjection(expression, pipeline, method);
 
+                var sourceSerializer = pipeline.OutputSerializer;
                 var stageExpression = arguments[1];
-                var renderedStage = TranslateStage(expression, stageExpression, sourceSerializer, BsonSerializer.SerializerRegistry);
+                var renderedStage = TranslateStage(expression, stageExpression, sourceSerializer, BsonSerializer.SerializerRegistry, context.TranslationOptions);
                 var stage = AstStage.Universal(renderedStage.Document);
 
                 var resultSerializerExpression = arguments[2];
@@ -56,10 +57,11 @@ namespace MongoDB.Driver.Linq.Linq3Implementation.Translators.ExpressionToPipeli
             Expression expression,
             Expression stageExpression,
             IBsonSerializer inputSerializer,
-            IBsonSerializerRegistry serializerRegistry)
+            IBsonSerializerRegistry serializerRegistry,
+            ExpressionTranslationOptions translationOptions)
         {
             var stageDefinition = stageExpression.GetConstantValue<IPipelineStageDefinition>(stageExpression);
-            return stageDefinition.Render(inputSerializer, serializerRegistry);
+            return stageDefinition.Render(inputSerializer, serializerRegistry, translationOptions);
         }
     }
 }

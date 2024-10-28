@@ -17,6 +17,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
+using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using Xunit;
@@ -29,7 +30,7 @@ namespace MongoDB.Bson.Tests.DefaultSerializer.Serializers
         public void TestNullKey()
         {
             var kvp = new KeyValuePair<string, object>(null, "value");
-            var json = kvp.ToJson();
+            var json = kvp.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'k' : null, 'v' : 'value' }".Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -42,24 +43,13 @@ namespace MongoDB.Bson.Tests.DefaultSerializer.Serializers
         public void TestNullValue()
         {
             var kvp = new KeyValuePair<string, object>("key", null);
-            var json = kvp.ToJson();
+            var json = kvp.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'k' : 'key', 'v' : null }".Replace("'", "\"");
             Assert.Equal(expected, json);
 
             var bson = kvp.ToBson();
             var rehydrated = BsonSerializer.Deserialize<KeyValuePair<string, object>>(bson);
             Assert.True(bson.SequenceEqual(rehydrated.ToBson()));
-        }
-
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new KeyValuePairSerializer<int, int>();
-            var y = new DerivedFromKeyValuePairSerializer<int, int>();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
         }
 
         [Fact]
@@ -138,10 +128,6 @@ namespace MongoDB.Bson.Tests.DefaultSerializer.Serializers
             var result = x.GetHashCode();
 
             result.Should().Be(0);
-        }
-
-        public class DerivedFromKeyValuePairSerializer<TKey, TValue> : KeyValuePairSerializer<TKey, TValue>
-        {
         }
     }
 }

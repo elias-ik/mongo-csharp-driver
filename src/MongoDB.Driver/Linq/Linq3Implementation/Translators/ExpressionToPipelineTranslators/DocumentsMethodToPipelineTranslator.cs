@@ -34,8 +34,17 @@ namespace MongoDB.Driver.Linq.Linq3Implementation.Translators.ExpressionToPipeli
 
             if (method.IsOneOf(MongoQueryableMethod.Documents, MongoQueryableMethod.DocumentsWithSerializer))
             {
-                var sourceExpression = ConvertHelper.RemoveConvertToMongoQueryable(arguments[0]);
+                var sourceExpression = arguments[0];
                 var pipeline = ExpressionToPipelineTranslator.Translate(context, sourceExpression);
+
+                if (pipeline.OutputSerializer != NoPipelineInputSerializer.Instance)
+                {
+                    throw new ExpressionNotSupportedException(expression, because: "a Documents method is only valid with an IQueryable against a database");
+                }
+                if (pipeline.Stages.Count != 0)
+                {
+                    throw new ExpressionNotSupportedException(expression, because: "a Documents method must be the first method in a LINQ query");
+                }
 
                 var documentsExpression = arguments[1];
                 var documents = documentsExpression.GetConstantValue<IEnumerable>(expression);

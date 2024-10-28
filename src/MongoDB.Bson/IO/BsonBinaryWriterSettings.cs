@@ -21,7 +21,6 @@ namespace MongoDB.Bson.IO
     /// <summary>
     /// Represents settings for a BsonBinaryWriter.
     /// </summary>
-    [Serializable]
     public class BsonBinaryWriterSettings : BsonWriterSettings
     {
         // private static fields
@@ -125,12 +124,6 @@ namespace MongoDB.Bson.IO
                 MaxDocumentSize = _maxDocumentSize,
                 MaxSerializationDepth = MaxSerializationDepth
             };
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                clone.GuidRepresentation = GuidRepresentation;
-            }
-#pragma warning restore 618
             return clone;
         }
     }

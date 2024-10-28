@@ -1,4 +1,4 @@
-﻿/* Copyright 2013-present MongoDB Inc.
+﻿/* Copyright 2010-present MongoDB Inc.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -35,12 +35,12 @@ using MongoDB.Driver.Core.WireProtocol.Messages.Encoders.BinaryEncoders;
 
 namespace MongoDB.Driver.Core.WireProtocol
 {
-    internal class CommandUsingQueryMessageWireProtocol<TCommandResult> : IWireProtocol<TCommandResult>
+    internal sealed class CommandUsingQueryMessageWireProtocol<TCommandResult> : IWireProtocol<TCommandResult>
     {
         // fields
         private readonly BsonDocument _additionalOptions;
         private readonly BsonDocument _command;
-        private readonly List<Type1CommandMessageSection> _commandPayloads;
+        private readonly List<BatchableCommandMessageSection> _commandPayloads;
         private readonly IElementNameValidator _commandValidator;
         private readonly DatabaseNamespace _databaseNamespace;
         private readonly Action<IMessageEncoderPostProcessor> _postWriteAction;
@@ -57,7 +57,7 @@ namespace MongoDB.Driver.Core.WireProtocol
             ReadPreference readPreference,
             DatabaseNamespace databaseNamespace,
             BsonDocument command,
-            IEnumerable<Type1CommandMessageSection> commandPayloads,
+            IEnumerable<BatchableCommandMessageSection> commandPayloads,
             IElementNameValidator commandValidator,
             BsonDocument additionalOptions,
             CommandResponseHandling responseHandling,
@@ -169,8 +169,13 @@ namespace MongoDB.Driver.Core.WireProtocol
             }
 
             var extraElements = new List<BsonElement>();
-            foreach (var type1Section in _commandPayloads)
+            foreach (var payloadSection in _commandPayloads)
             {
+                if (payloadSection is not Type1CommandMessageSection type1Section)
+                {
+                    throw new NotSupportedException("Query protocol supports only Type1CommandMessageSection payload sections.");
+                }
+
                 var name = type1Section.Identifier;
                 var value = CreatePayloadArray(type1Section, connectionDescription);
                 var element = new BsonElement(name, value);
@@ -254,12 +259,6 @@ namespace MongoDB.Driver.Core.WireProtocol
                 if (_messageEncoderSettings != null)
                 {
                     binaryReaderSettings.Encoding = _messageEncoderSettings.GetOrDefault<UTF8Encoding>(MessageEncoderSettingsName.ReadEncoding, Utf8Encodings.Strict);
-#pragma warning disable 618
-                    if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-                    {
-                        binaryReaderSettings.GuidRepresentation = _messageEncoderSettings.GetOrDefault<GuidRepresentation>(MessageEncoderSettingsName.GuidRepresentation, GuidRepresentation.CSharpLegacy);
-                    }
-#pragma warning restore 618
                 };
 
                 BsonValue clusterTime;
@@ -375,14 +374,7 @@ namespace MongoDB.Driver.Core.WireProtocol
                 var clusterTime = new BsonElement("$clusterTime", _session.ClusterTime);
                 extraElements.Add(clusterTime);
             }
-#pragma warning disable 618
-            Action<BsonWriterSettings> writerSettingsConfigurator = null;
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                writerSettingsConfigurator = s => s.GuidRepresentation = GuidRepresentation.Unspecified;
-            }
-#pragma warning restore 618
-            var appendExtraElementsSerializer = new ElementAppendingSerializer<BsonDocument>(BsonDocumentSerializer.Instance, extraElements, writerSettingsConfigurator);
+            var appendExtraElementsSerializer = new ElementAppendingSerializer<BsonDocument>(BsonDocumentSerializer.Instance, extraElements);
             var commandWithExtraElements = new BsonDocumentWrapper(command, appendExtraElementsSerializer);
 
             var serverType = connectionDescription != null ? connectionDescription.HelloResult.ServerType : ServerType.Unknown;

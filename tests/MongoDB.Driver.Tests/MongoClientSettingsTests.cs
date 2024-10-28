@@ -22,7 +22,6 @@ using System.Text;
 using System.Threading;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
 using MongoDB.Driver.Core.Clusters;
 using MongoDB.Driver.Core.Compression;
 using MongoDB.Driver.Core.Configuration;
@@ -93,25 +92,27 @@ namespace MongoDB.Driver.Tests
                 "readPreference=secondary;readPreferenceTags=a:1,b:2;readPreferenceTags=c:3,d:4;socketTimeout=129;" +
                 "serverMonitoringMode=Stream;serverSelectionTimeout=20s;ssl=true;sslVerifyCertificate=false;waitqueuesize=130;waitQueueTimeout=131;" +
                 "w=1;fsync=true;journal=true;w=2;wtimeout=131;gssapiServiceName=other;tlsInsecure=true";
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                connectionString += ";uuidRepresentation=pythonLegacy";
-            }
-#pragma warning restore 618
             var builder = new MongoUrlBuilder(connectionString);
             var url = builder.ToMongoUrl();
             var settings = MongoClientSettings.FromUrl(url);
 
             // a few settings can only be made in code
-#pragma warning disable 618
-            settings.Credential = MongoCredential.CreateMongoCRCredential("database", "username", "password").WithMechanismProperty("SERVICE_NAME", "other");
-#pragma warning restore 618
+            settings.Credential = MongoCredential.CreateCredential("database", "username", "password").WithMechanismProperty("SERVICE_NAME", "other");
             settings.SslSettings = new SslSettings { CheckCertificateRevocation = false };
-#pragma warning disable CS0618 // Type or member is obsolete
-            settings.SdamLogFilename = "stdout";
-#pragma warning restore CS0618 // Type or member is obsolete
             settings.ServerApi = new ServerApi(ServerApiVersion.V1, true, true);
+
+            var clone = settings.Clone();
+            Assert.Equal(settings, clone);
+        }
+
+        [Fact]
+        public void TestCloneClusterSource()
+        {
+            var clusterSource = new Mock<IClusterSource>().Object;
+            var settings = new MongoClientSettings()
+            {
+                ClusterSource = clusterSource
+            };
 
             var clone = settings.Clone();
             Assert.Equal(settings, clone);
@@ -174,6 +175,21 @@ namespace MongoDB.Driver.Tests
         }
 
         [Fact]
+        public void TestClusterSource()
+        {
+            var settings = new MongoClientSettings();
+            Assert.Equal(DefaultClusterSource.Instance, settings.ClusterSource);
+
+            var newClusterSource = new Mock<IClusterSource>();
+            settings.ClusterSource = newClusterSource.Object;
+            Assert.Equal(newClusterSource.Object, settings.ClusterSource);
+
+            settings.Freeze();
+            Assert.Equal(newClusterSource.Object, settings.ClusterSource);
+            Assert.Throws<InvalidOperationException>(() => { settings.ClusterSource = newClusterSource.Object; });
+        }
+
+        [Fact]
         public void TestCompressors()
         {
             var settings = new MongoClientSettings();
@@ -202,25 +218,6 @@ namespace MongoDB.Driver.Tests
             Assert.Contains(expectedConnectionString, result);
         }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-        [Fact]
-        public void TestConnectionMode()
-        {
-            var settings = new MongoClientSettings();
-            Assert.Equal(ConnectionMode.Automatic, settings.ConnectionMode);
-            Assert.Equal(ConnectionModeSwitch.NotSet, settings.ConnectionModeSwitch);
-
-            var connectionMode = ConnectionMode.Direct;
-            settings.ConnectionMode = connectionMode;
-            Assert.Equal(connectionMode, settings.ConnectionMode);
-            Assert.Equal(ConnectionModeSwitch.UseConnectionMode, settings.ConnectionModeSwitch);
-
-            settings.Freeze();
-            Assert.Equal(connectionMode, settings.ConnectionMode);
-            Assert.Throws<InvalidOperationException>(() => { settings.ConnectionMode = connectionMode; });
-        }
-#pragma warning restore CS0618 // Type or member is obsolete
-
         [Fact]
         public void TestConnectTimeout()
         {
@@ -242,20 +239,11 @@ namespace MongoDB.Driver.Tests
             var settings = new MongoClientSettings();
             Assert.Equal(false, settings.AllowInsecureTls);
             Assert.Equal(null, settings.ApplicationName);
+            Assert.Equal(DefaultClusterSource.Instance, settings.ClusterSource);
             Assert.Equal(Enumerable.Empty<CompressorConfiguration>(), settings.Compressors);
-#pragma warning disable CS0618 // Type or member is obsolete
-            Assert.Equal(ConnectionMode.Automatic, settings.ConnectionMode);
-            Assert.Equal(ConnectionModeSwitch.NotSet, settings.ConnectionModeSwitch);
-#pragma warning restore CS0618 // Type or member is obsolete
             Assert.Equal(MongoDefaults.ConnectTimeout, settings.ConnectTimeout);
-#pragma warning disable 618
             Assert.Null(settings.Credential);
-            Assert.Equal(null, settings.DirectConnection);
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                Assert.Equal(MongoDefaults.GuidRepresentation, settings.GuidRepresentation);
-            }
-#pragma warning restore 618
+            Assert.Equal(false, settings.DirectConnection);
             Assert.Equal(ServerSettings.DefaultHeartbeatInterval, settings.HeartbeatInterval);
             Assert.Equal(ServerSettings.DefaultHeartbeatTimeout, settings.HeartbeatTimeout);
             Assert.Equal(false, settings.IPv6);
@@ -291,16 +279,13 @@ namespace MongoDB.Driver.Tests
 #pragma warning restore 618
             Assert.Equal(MongoDefaults.WaitQueueTimeout, settings.WaitQueueTimeout);
             Assert.Equal(WriteConcern.Acknowledged, settings.WriteConcern);
-#pragma warning disable CS0618 // Type or member is obsolete
-            Assert.Equal(null, settings.SdamLogFilename);
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Fact]
         public void TestDirectConnection()
         {
             var settings = new MongoClientSettings();
-            settings.DirectConnection.Should().NotHaveValue();
+            settings.DirectConnection.Should().BeFalse();
 
             var directConnection = true;
             settings.DirectConnection = directConnection;
@@ -327,84 +312,6 @@ namespace MongoDB.Driver.Tests
             exception.Should().BeOfType<InvalidOperationException>();
         }
 
-        [Theory]
-#pragma warning disable CS0618 // Type or member is obsolete
-        [InlineData("connect", ConnectionMode.Automatic, "directConnection", true, true)]
-        [InlineData("connect", ConnectionMode.Direct, "directConnection", false, true)]
-        [InlineData("connect", ConnectionMode.Direct, "directConnection", null, true)]
-        [InlineData("connect", ConnectionMode.ReplicaSet, "connect", ConnectionMode.ReplicaSet, false)]
-        [InlineData("directConnection", false, "connect", ConnectionMode.Automatic, true)]
-        [InlineData("directConnection", true, "connect", ConnectionMode.Direct, true)]
-        [InlineData("directConnection", null, "connect", ConnectionMode.ReplicaSet, true)]
-        [InlineData("directConnection", null, "directConnection", null, false)]
-        [InlineData("directConnection", true, "directConnection", true, false)]
-#pragma warning restore CS0618 // Type or member is obsolete
-        public void TestThatUsingPropertyPairsWorksAsExpected(string property1, object value1, string property2, object value2, bool shouldFailOnSecondAttempt)
-        {
-            var settings = new MongoClientSettings();
-#pragma warning disable CS0618 // Type or member is obsolete
-            settings.ConnectionMode.Should().Be(ConnectionMode.Automatic);
-            settings.ConnectionModeSwitch.Should().Be(ConnectionModeSwitch.NotSet);
-#pragma warning restore CS0618 // Type or member is obsolete
-            settings.DirectConnection.Should().NotHaveValue();
-
-            var testSteps = new (string Property, object Value, bool ShouldFail)[]
-            {
-                (property1, value1, false),
-                (property2, value2, shouldFailOnSecondAttempt)
-            };
-
-#pragma warning disable CS0618 // Type or member is obsolete
-            ConnectionModeSwitch? firstConnectionModeSwitch = null;
-#pragma warning restore CS0618 // Type or member is obsolete
-
-            foreach (var propertySet in testSteps)
-            {
-                switch (propertySet.Property)
-                {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    case "connect":
-                        {
-                            // get
-                            AssertException(Record.Exception(() => _ = settings.ConnectionMode), propertySet.ShouldFail);
-                            // set
-                            AssertException(Record.Exception(() => settings.ConnectionMode = (ConnectionMode)propertySet.Value), propertySet.ShouldFail);
-                        }
-                        break;
-#pragma warning restore CS0618 // Type or member is obsolete
-                    case "directConnection":
-                        {
-                            // get
-                            AssertException(Record.Exception(() => _ = settings.DirectConnection), propertySet.ShouldFail);
-                            // set
-                            AssertException(Record.Exception(() => settings.DirectConnection = (bool?)propertySet.Value), propertySet.ShouldFail);
-                        }
-                        break;
-                    default: throw new Exception($"Unexpected property {propertySet.Property}.");
-                }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-                if (!firstConnectionModeSwitch.HasValue)
-                {
-                    firstConnectionModeSwitch = settings.ConnectionModeSwitch;
-                }
-                settings.ConnectionModeSwitch.Should().Be(firstConnectionModeSwitch); // the exception won't change it
-#pragma warning restore CS0618 // Type or member is obsolete
-            }
-
-            void AssertException(Exception ex, bool shouldFail)
-            {
-                if (shouldFail)
-                {
-                    ex.Should().BeOfType<InvalidOperationException>();
-                }
-                else
-                {
-                    ex.Should().BeNull();
-                }
-            }
-        }
-
         [Fact]
         public void TestEquals()
         {
@@ -421,13 +328,11 @@ namespace MongoDB.Driver.Tests
             Assert.False(clone.Equals(settings));
 
             clone = settings.Clone();
-            clone.Compressors = new[] { new CompressorConfiguration(CompressorType.Zlib) };
+            clone.ClusterSource = (new Mock<IClusterSource>()).Object;
             Assert.False(clone.Equals(settings));
 
             clone = settings.Clone();
-#pragma warning disable CS0618 // Type or member is obsolete
-            clone.ConnectionMode = ConnectionMode.Direct;
-#pragma warning restore CS0618 // Type or member is obsolete
+            clone.Compressors = new[] { new CompressorConfiguration(CompressorType.Zlib) };
             Assert.False(clone.Equals(settings));
 
             clone = settings.Clone();
@@ -435,34 +340,20 @@ namespace MongoDB.Driver.Tests
             Assert.False(clone.Equals(settings));
 
             clone = settings.Clone();
-#pragma warning disable 618
-            clone.Credential = MongoCredential.CreateMongoCRCredential("db2", "user2", "password2");
-#pragma warning restore 618
+            clone.Credential = MongoCredential.CreateCredential("db2", "user2", "password2");
             Assert.False(clone.Equals(settings));
 
             clone = settings.Clone();
-#pragma warning disable 618
-            clone.Credential = MongoCredential.CreateMongoCRCredential("db", "user2", "password2");
-#pragma warning restore 618
+            clone.Credential = MongoCredential.CreateCredential("db", "user2", "password2");
             Assert.False(clone.Equals(settings));
 
             clone = settings.Clone();
-            clone.DirectConnection = false;
+            clone.DirectConnection = true;
             Assert.False(clone.Equals(settings));
 
             clone = settings.Clone();
             clone.LibraryInfo = new LibraryInfo("name", "version");
             Assert.False(clone.Equals(settings));
-
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                clone = settings.Clone();
-                var unequalGuidRepresentation = clone.GuidRepresentation != GuidRepresentation.PythonLegacy ? GuidRepresentation.PythonLegacy : GuidRepresentation.CSharpLegacy;
-                clone.GuidRepresentation = unequalGuidRepresentation;
-                Assert.False(clone.Equals(settings));
-            }
-#pragma warning restore 618
 
             clone = settings.Clone();
             clone.HeartbeatInterval = new TimeSpan(1, 2, 3);
@@ -578,12 +469,6 @@ namespace MongoDB.Driver.Tests
             clone.WriteConcern = WriteConcern.W2;
             Assert.False(clone.Equals(settings));
 
-            clone = settings.Clone();
-#pragma warning disable CS0618 // Type or member is obsolete
-            clone.SdamLogFilename = "garbage";
-#pragma warning restore CS0618 // Type or member is obsolete
-            Assert.False(clone.Equals(settings));
-
             // set non default values
             settings.AutoEncryptionOptions = new AutoEncryptionOptions(CollectionNamespace.FromFullName("encryption.__keyVault"), new Dictionary<string, IReadOnlyDictionary<string, object>>());
             settings.LoggingSettings = new LoggingSettings(null, 123);
@@ -693,43 +578,28 @@ namespace MongoDB.Driver.Tests
             // not allowed in a connection string
             var connectionString =
                 "mongodb://user1:password1@somehost/?appname=app1;authSource=db;authMechanismProperties=CANONICALIZE_HOST_NAME:true;" +
-                "compressors=zlib,snappy;zlibCompressionLevel=9;connect=direct;connectTimeout=123;ipv6=true;heartbeatInterval=1m;heartbeatTimeout=2m;loadBalanced=false;localThreshold=128;" +
+                "compressors=zlib,snappy;zlibCompressionLevel=9;connectTimeout=123;directConnection=true;ipv6=true;heartbeatInterval=1m;heartbeatTimeout=2m;loadBalanced=false;localThreshold=128;" +
                 "maxConnecting=3;maxIdleTime=124;maxLifeTime=125;maxPoolSize=126;minPoolSize=127;readConcernLevel=majority;" +
                 "readPreference=secondary;readPreferenceTags=a:1,b:2;readPreferenceTags=c:3,d:4;retryReads=false;retryWrites=true;socketTimeout=129;" +
                 "serverMonitoringMode=Stream;serverSelectionTimeout=20s;tls=true;sslVerifyCertificate=false;waitqueuesize=130;waitQueueTimeout=131;" +
                 "w=1;fsync=true;journal=true;w=2;wtimeout=131;gssapiServiceName=other";
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                connectionString += ";uuidRepresentation=pythonLegacy";
-            }
-#pragma warning restore 618
             var builder = new MongoUrlBuilder(connectionString);
             var url = builder.ToMongoUrl();
 
             var settings = MongoClientSettings.FromUrl(url);
             Assert.Equal(url.AllowInsecureTls, settings.AllowInsecureTls);
             Assert.Equal(url.ApplicationName, settings.ApplicationName);
+            Assert.Equal(DefaultClusterSource.Instance, settings.ClusterSource);
             Assert.Equal(url.Compressors, settings.Compressors);
-#pragma warning disable CS0618 // Type or member is obsolete
-            Assert.Equal(url.ConnectionMode, settings.ConnectionMode);
-#pragma warning restore CS0618 // Type or member is obsolete
             Assert.Equal(url.ConnectTimeout, settings.ConnectTimeout);
-#pragma warning disable 618
             Assert.NotNull(settings.Credential);
-#pragma warning restore
+            Assert.Equal(url.DirectConnection, settings.DirectConnection);
             Assert.Equal(url.Username, settings.Credential.Username);
             Assert.Equal(url.AuthenticationMechanism, settings.Credential.Mechanism);
             Assert.Equal("other", settings.Credential.GetMechanismProperty<string>("SERVICE_NAME", "mongodb"));
             Assert.Equal(true, settings.Credential.GetMechanismProperty<bool>("CANONICALIZE_HOST_NAME", false));
             Assert.Equal(url.AuthenticationSource, settings.Credential.Source);
             Assert.Equal(new PasswordEvidence(url.Password), settings.Credential.Evidence);
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                Assert.Equal(url.GuidRepresentation, settings.GuidRepresentation);
-            }
-#pragma warning restore 618
             Assert.Equal(url.HeartbeatInterval, settings.HeartbeatInterval);
             Assert.Equal(url.HeartbeatTimeout, settings.HeartbeatTimeout);
             Assert.Equal(url.IPv6, settings.IPv6);
@@ -841,22 +711,6 @@ namespace MongoDB.Driver.Tests
         }
 
         [Theory]
-        [InlineData("mongodb+srv://username:password@test5.test.build.10gen.cc/?connect=standalone", ConnectionStringScheme.MongoDB, "localhost.test.build.10gen.cc:27017")]
-        [InlineData("mongodb+srv://username:password@test5.test.build.10gen.cc/?connect=automatic", ConnectionStringScheme.MongoDBPlusSrv, "test5.test.build.10gen.cc:53")]
-        [InlineData("mongodb+srv://username:password@test5.test.build.10gen.cc/?connect=replicaset", ConnectionStringScheme.MongoDBPlusSrv, "test5.test.build.10gen.cc:53")]
-        [InlineData("mongodb+srv://username:password@test5.test.build.10gen.cc/?connect=shardrouter", ConnectionStringScheme.MongoDBPlusSrv, "test5.test.build.10gen.cc:53")]
-        public void TestFromUrlResolving(string connectionString, ConnectionStringScheme expectedScheme, string expectedEndPoint)
-        {
-            var url = new MongoUrl(connectionString);
-
-            var result = MongoClientSettings.FromUrl(url);
-
-            var expectedServers = new[] { MongoServerAddress.Parse(expectedEndPoint) };
-            result.Servers.Should().Equal(expectedServers);
-            result.Scheme.Should().Be(expectedScheme);
-        }
-
-        [Theory]
         [ParameterAttributeData]
         public void TestFromUrlWithMongoDBAWS_should_parse_credentials_correctly([Values(false, true)] bool escapeToken)
         {
@@ -889,35 +743,6 @@ namespace MongoDB.Driver.Tests
 
             var secondFrozenCopy = frozenCopy.FrozenCopy();
             Assert.Same(frozenCopy, secondFrozenCopy);
-        }
-
-        [Fact]
-        public void TestGuidRepresentation()
-        {
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                var settings = new MongoClientSettings();
-                Assert.Equal(MongoDefaults.GuidRepresentation, settings.GuidRepresentation);
-
-                var guidRepresentation = GuidRepresentation.PythonLegacy;
-                settings.GuidRepresentation = guidRepresentation;
-                Assert.Equal(guidRepresentation, settings.GuidRepresentation);
-
-                settings.Freeze();
-                Assert.Equal(guidRepresentation, settings.GuidRepresentation);
-                Assert.Throws<InvalidOperationException>(() => { settings.GuidRepresentation = guidRepresentation; });
-            }
-            else
-            {
-                var settings = new MongoClientSettings();
-                var exception = Record.Exception(() => settings.GuidRepresentation);
-                exception.Should().BeOfType<InvalidOperationException>();
-
-                exception = Record.Exception(() => { settings.GuidRepresentation = GuidRepresentation.CSharpLegacy; });
-                exception.Should().BeOfType<InvalidOperationException>();
-            }
-#pragma warning restore 618
         }
 
         [Fact]
@@ -1190,23 +1015,6 @@ namespace MongoDB.Driver.Tests
             Assert.Equal(scheme, settings.Scheme);
             Assert.Throws<InvalidOperationException>(() => { settings.Scheme = scheme; });
         }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-        [Fact]
-        public void TestSdamLogFileName()
-        {
-            var settings = new MongoClientSettings();
-            Assert.Equal(null, settings.SdamLogFilename);
-
-            var sdamLogFileName = "LCARS";
-            settings.SdamLogFilename = sdamLogFileName;
-            Assert.Same(sdamLogFileName, settings.SdamLogFilename);
-
-            settings.Freeze();
-            Assert.Same(sdamLogFileName, settings.SdamLogFilename);
-            Assert.Throws<InvalidOperationException>(() => { settings.SdamLogFilename = sdamLogFileName; });
-        }
-#pragma warning restore CS0618 // Type or member is obsolete
 
         [Fact]
         public void TestServer()
@@ -1482,15 +1290,13 @@ namespace MongoDB.Driver.Tests
         public void ToClusterKey_should_copy_relevant_values()
         {
             var clusterConfigurator = new Action<ClusterBuilder>(b => { });
-#pragma warning disable 618
-            var credential = MongoCredential.CreateMongoCRCredential("source", "username", "password");
-#pragma warning restore 618
+            var credential = MongoCredential.CreateCredential("source", "username", "password");
             var serverApi = new ServerApi(ServerApiVersion.V1, true, true);
             var servers = new[] { new MongoServerAddress("localhost") };
             var sslSettings = new SslSettings
             {
                 CheckCertificateRevocation = true,
-                EnabledSslProtocols = SslProtocols.Tls
+                EnabledSslProtocols = SslProtocols.Tls12
             };
 
             var subject = new MongoClientSettings
@@ -1498,11 +1304,9 @@ namespace MongoDB.Driver.Tests
                 AllowInsecureTls = false,
                 ApplicationName = "app",
                 ClusterConfigurator = clusterConfigurator,
-#pragma warning disable CS0618 // Type or member is obsolete
-                ConnectionMode = ConnectionMode.Direct,
-#pragma warning restore CS0618 // Type or member is obsolete
                 ConnectTimeout = TimeSpan.FromSeconds(1),
                 Credential = credential,
+                DirectConnection = true,
                 LibraryInfo = new LibraryInfo("name", "version"),
                 HeartbeatInterval = TimeSpan.FromSeconds(7),
                 HeartbeatTimeout = TimeSpan.FromSeconds(8),
@@ -1516,9 +1320,6 @@ namespace MongoDB.Driver.Tests
                 MinConnectionPoolSize = 5,
                 ReplicaSetName = "rs",
                 Scheme = ConnectionStringScheme.MongoDB,
-#pragma warning disable CS0618 // Type or member is obsolete
-                SdamLogFilename = "pokédex",
-#pragma warning restore CS0618 // Type or member is obsolete
                 ServerApi = serverApi,
                 Servers = servers,
                 ServerMonitoringMode = ServerMonitoringMode.Poll,
@@ -1531,25 +1332,15 @@ namespace MongoDB.Driver.Tests
 #pragma warning restore 618
                 WaitQueueTimeout = TimeSpan.FromSeconds(5)
             };
-#pragma warning disable 618
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                subject.GuidRepresentation = GuidRepresentation.Standard;
-            }
-#pragma warning restore 618
 
             var result = subject.ToClusterKey();
 
             result.AllowInsecureTls.Should().Be(subject.AllowInsecureTls);
             result.ApplicationName.Should().Be(subject.ApplicationName);
             result.ClusterConfigurator.Should().BeSameAs(clusterConfigurator);
-#pragma warning disable CS0618 // Type or member is obsolete
-            result.ConnectionMode.Should().Be(subject.ConnectionMode);
-#pragma warning restore CS0618 // Type or member is obsolete
             result.ConnectTimeout.Should().Be(subject.ConnectTimeout);
-#pragma warning disable CS0618 // Type or member is obsolete
             result.Credential.Should().Be(subject.Credential);
-#pragma warning restore CS0618 // Type or member is obsolete
+            result.DirectConnection.Should().Be(subject.DirectConnection);
             result.LibraryInfo.Should().Be(subject.LibraryInfo);
             result.HeartbeatInterval.Should().Be(subject.HeartbeatInterval);
             result.HeartbeatTimeout.Should().Be(subject.HeartbeatTimeout);
@@ -1564,9 +1355,6 @@ namespace MongoDB.Driver.Tests
             result.ReceiveBufferSize.Should().Be(MongoDefaults.TcpReceiveBufferSize);
             result.ReplicaSetName.Should().Be(subject.ReplicaSetName);
             result.Scheme.Should().Be(subject.Scheme);
-#pragma warning disable CS0618 // Type or member is obsolete
-            result.SdamLogFilename.Should().Be(subject.SdamLogFilename);
-#pragma warning restore CS0618 // Type or member is obsolete
             result.SendBufferSize.Should().Be(MongoDefaults.TcpSendBufferSize);
             result.ServerApi.Should().Be(subject.ServerApi);
             result.Servers.Should().Equal(subject.Servers);

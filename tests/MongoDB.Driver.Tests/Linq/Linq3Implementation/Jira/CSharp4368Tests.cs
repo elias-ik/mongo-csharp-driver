@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using FluentAssertions;
@@ -23,7 +24,6 @@ using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Bson.TestHelpers;
-using MongoDB.Driver.Linq;
 using MongoDB.Driver.Linq.Linq3Implementation.Serializers;
 using Xunit;
 
@@ -78,20 +78,15 @@ namespace MongoDB.Driver.Tests.Linq.Linq3Implementation.Jira
             CreateTestCase<DateTime>("ISODate('2021-01-02T03:04:05.123')", x => (BsonValue)x.V),
             CreateTestCase<DateTime?>("ISODate('2021-01-02T03:04:05.123')", x => (BsonValue)x.V),
             CreateTestCase<DateTime?>("null", x => (BsonValue)x.V),
-            CreateTestCase<decimal>("'1'", x => (BsonValue)x.V),
-            CreateTestCase<decimal?>("'1'", x => (BsonValue)x.V),
+            CreateTestCase<decimal>("{ $numberDecimal : '1.0' }", x => (BsonValue)x.V),
+            CreateTestCase<decimal?>("{ $numberDecimal : '1.0' }", x => (BsonValue)x.V),
             CreateTestCase<decimal?>("null", x => (BsonValue)x.V),
-            CreateTestCase<Decimal128>("'1'", x => (BsonValue)x.V),
-            CreateTestCase<Decimal128?>("'1'", x => (BsonValue)x.V),
+            CreateTestCase<Decimal128>("{ $numberDecimal : '1.0' }", x => (BsonValue)x.V),
+            CreateTestCase<Decimal128?>("{ $numberDecimal : '1.0' }", x => (BsonValue)x.V),
             CreateTestCase<Decimal128?>("null", x => (BsonValue)x.V),
             CreateTestCase<double>("{ $numberDouble : '1.0' }", x => (BsonValue)x.V),
             CreateTestCase<double?>("{ $numberDouble : '1.0' }", x => (BsonValue)x.V),
             CreateTestCase<double?>("null", x => (BsonValue)x.V),
-#pragma warning disable CS0618 // Type or member is obsolete
-            CreateTestCase<Guid>("UUID('01020304-0506-0708-090a-0b0c0d0e0f10')", x => (BsonValue)x.V),
-            CreateTestCase<Guid?>("UUID('01020304-0506-0708-090a-0b0c0d0e0f10')", x => (BsonValue)x.V),
-            CreateTestCase<Guid?>("null", x => (BsonValue)x.V),
-#pragma warning restore CS0618 // Type or member is obsolete
             CreateTestCase<Guid>("UUID('01020304-0506-0708-090a-0b0c0d0e0f10')", x => (BsonValue)(object)x.V),
             CreateTestCase<Guid?>("UUID('01020304-0506-0708-090a-0b0c0d0e0f10')", x => (BsonValue)(object)x.V),
             CreateTestCase<Guid?>("null", x => (BsonValue)(object)x.V),
@@ -123,11 +118,8 @@ namespace MongoDB.Driver.Tests.Linq.Linq3Implementation.Jira
 
         [Theory]
         [MemberData(nameof(Convert_to_BsonValue_from_TValue_should_work_MemberData))]
-        [ResetGuidModeAfterTest]
         public void Convert_to_BsonValue_from_TValue_should_work_invoker(Type valueType, int i, string valueAsJson, string projectionAsString)
         {
-            GuidMode.Set(GuidRepresentationMode.V3);
-
             var testMethodInfo = this.GetType().GetMethod(nameof(Convert_to_BsonValue_from_TValue_should_work));
             var testMethod = testMethodInfo.MakeGenericMethod(valueType);
             testMethod.Invoke(this, new object[] { i, valueAsJson, projectionAsString });

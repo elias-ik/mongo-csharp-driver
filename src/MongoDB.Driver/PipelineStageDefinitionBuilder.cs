@@ -20,9 +20,14 @@ using System.Linq.Expressions;
 using System.Reflection;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Conventions;
+using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver.Core.Misc;
 using MongoDB.Driver.Linq;
 using MongoDB.Driver.Linq.Linq3Implementation;
+using MongoDB.Driver.Linq.Linq3Implementation.Ast.Filters;
+using MongoDB.Driver.Linq.Linq3Implementation.Ast.Optimizers;
+using MongoDB.Driver.Linq.Linq3Implementation.Misc;
 using MongoDB.Driver.Linq.Linq3Implementation.Serializers;
 using MongoDB.Driver.Linq.Linq3Implementation.Translators;
 using MongoDB.Driver.Search;
@@ -56,6 +61,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var valueSerializer = args.SerializerRegistry.GetSerializer<TValue>();
                     var renderedGroupBy = groupBy.Render(args);
                     var serializedBoundaries = boundaries.Select(b => valueSerializer.ToBsonValue(b));
@@ -105,6 +111,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var valueSerializer = args.SerializerRegistry.GetSerializer<TValue>();
                     var outputSerializer = args.SerializerRegistry.GetSerializer<TOutput>();
                     var renderedGroupBy = groupBy.Render(args);
@@ -139,17 +146,15 @@ namespace MongoDB.Driver
         /// <param name="groupBy">The group by expression.</param>
         /// <param name="boundaries">The boundaries.</param>
         /// <param name="options">The options.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, AggregateBucketResult<TValue>> Bucket<TInput, TValue>(
             Expression<Func<TInput, TValue>> groupBy,
             IEnumerable<TValue> boundaries,
-            AggregateBucketOptions<TValue> options = null,
-            ExpressionTranslationOptions translationOptions = null)
+            AggregateBucketOptions<TValue> options = null)
         {
             Ensure.IsNotNull(groupBy, nameof(groupBy));
             return Bucket(
-                new ExpressionAggregateExpressionDefinition<TInput, TValue>(groupBy, translationOptions),
+                new ExpressionAggregateExpressionDefinition<TInput, TValue>(groupBy),
                 boundaries,
                 options);
         }
@@ -164,18 +169,16 @@ namespace MongoDB.Driver
         /// <param name="boundaries">The boundaries.</param>
         /// <param name="output">The output projection.</param>
         /// <param name="options">The options.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, TOutput> Bucket<TInput, TValue, TOutput>(
             Expression<Func<TInput, TValue>> groupBy,
             IEnumerable<TValue> boundaries,
             Expression<Func<IGrouping<TValue, TInput>, TOutput>> output,
-            AggregateBucketOptions<TValue> options = null,
-            ExpressionTranslationOptions translationOptions = null)
+            AggregateBucketOptions<TValue> options = null)
         {
             Ensure.IsNotNull(groupBy, nameof(groupBy));
             Ensure.IsNotNull(output, nameof(output));
-            return new BucketWithOutputExpressionStageDefinition<TInput, TValue, TOutput>(groupBy, boundaries, output, options, translationOptions);
+            return new BucketWithOutputExpressionStageDefinition<TInput, TValue, TOutput>(groupBy, boundaries, output, options);
         }
 
         /// <summary>
@@ -200,6 +203,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var renderedGroupBy = groupBy.Render(args);
                     var document = new BsonDocument
                     {
@@ -246,6 +250,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var outputSerializer = args.SerializerRegistry.GetSerializer<TOutput>();
                     var renderedGroupBy = groupBy.Render(args);
                     var renderedOutput = output.Render(args);
@@ -277,17 +282,15 @@ namespace MongoDB.Driver
         /// <param name="groupBy">The group by expression.</param>
         /// <param name="buckets">The number of buckets.</param>
         /// <param name="options">The options (optional).</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, AggregateBucketAutoResult<TValue>> BucketAuto<TInput, TValue>(
             Expression<Func<TInput, TValue>> groupBy,
             int buckets,
-            AggregateBucketAutoOptions options = null,
-            ExpressionTranslationOptions translationOptions = null)
+            AggregateBucketAutoOptions options = null)
         {
             Ensure.IsNotNull(groupBy, nameof(groupBy));
             return BucketAuto(
-                new ExpressionAggregateExpressionDefinition<TInput, TValue>(groupBy, translationOptions),
+                new ExpressionAggregateExpressionDefinition<TInput, TValue>(groupBy),
                 buckets,
                 options);
         }
@@ -302,14 +305,12 @@ namespace MongoDB.Driver
         /// <param name="buckets">The number of buckets.</param>
         /// <param name="output">The output projection.</param>
         /// <param name="options">The options (optional).</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, TOutput> BucketAuto<TInput, TValue, TOutput>(
             Expression<Func<TInput, TValue>> groupBy,
             int buckets,
             Expression<Func<IGrouping<AggregateBucketAutoResultId<TValue>, TInput>, TOutput>> output,
-            AggregateBucketAutoOptions options = null,
-            ExpressionTranslationOptions translationOptions = null)
+            AggregateBucketAutoOptions options = null)
         {
             Ensure.IsNotNull(groupBy, nameof(groupBy));
             Ensure.IsNotNull(output, nameof(output));
@@ -335,6 +336,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var renderedOptions = new BsonDocument
                     {
                         { "fullDocument", () => MongoUtils.ToCamelCase(options.FullDocument.ToString()), options.FullDocument != ChangeStreamFullDocumentOption.Default },
@@ -404,6 +406,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var renderedPartitionByFields = partitionByFields?.Select(f => f.Render(args).FieldName).ToList();
                     var document = new BsonDocument
                     {
@@ -545,6 +548,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var facetsDocument = new BsonDocument();
                     foreach (var facet in materializedFacets)
                     {
@@ -643,6 +647,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var inputSerializer = args.DocumentSerializer;
                     var outputSerializer = options?.OutputSerializer ?? args.SerializerRegistry.GetSerializer<TOutput>();
                     var fromSerializer = options?.FromSerializer ?? args.SerializerRegistry.GetSerializer<TFrom>();
@@ -743,7 +748,6 @@ namespace MongoDB.Driver
         /// <param name="startWith">The start with value.</param>
         /// <param name="as">The as field.</param>
         /// <param name="options">The options.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, TOutput> GraphLookup<TInput, TFrom, TConnectFrom, TConnectTo, TStartWith, TAs, TOutput>(
             IMongoCollection<TFrom> from,
@@ -751,8 +755,7 @@ namespace MongoDB.Driver
             Expression<Func<TFrom, TConnectTo>> connectToField,
             Expression<Func<TInput, TStartWith>> startWith,
             Expression<Func<TOutput, TAs>> @as,
-            AggregateGraphLookupOptions<TFrom, TFrom, TOutput> options = null,
-            ExpressionTranslationOptions translationOptions = null)
+            AggregateGraphLookupOptions<TFrom, TFrom, TOutput> options = null)
                 where TAs : IEnumerable<TFrom>
         {
             Ensure.IsNotNull(connectFromField, nameof(connectFromField));
@@ -763,7 +766,7 @@ namespace MongoDB.Driver
                 from,
                 new ExpressionFieldDefinition<TFrom, TConnectFrom>(connectFromField),
                 new ExpressionFieldDefinition<TFrom, TConnectTo>(connectToField),
-                new ExpressionAggregateExpressionDefinition<TInput, TStartWith>(startWith, translationOptions),
+                new ExpressionAggregateExpressionDefinition<TInput, TStartWith>(startWith),
                 new ExpressionFieldDefinition<TOutput, TAs>(@as),
                 options);
         }
@@ -786,7 +789,6 @@ namespace MongoDB.Driver
         /// <param name="as">The as field.</param>
         /// <param name="depthField">The depth field.</param>
         /// <param name="options">The options.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, TOutput> GraphLookup<TInput, TFrom, TConnectFrom, TConnectTo, TStartWith, TAsElement, TAs, TOutput>(
             IMongoCollection<TFrom> from,
@@ -795,8 +797,7 @@ namespace MongoDB.Driver
             Expression<Func<TInput, TStartWith>> startWith,
             Expression<Func<TOutput, TAs>> @as,
             Expression<Func<TAsElement, int>> depthField,
-            AggregateGraphLookupOptions<TFrom, TAsElement, TOutput> options = null,
-            ExpressionTranslationOptions translationOptions = null)
+            AggregateGraphLookupOptions<TFrom, TAsElement, TOutput> options = null)
                 where TAs : IEnumerable<TAsElement>
         {
             Ensure.IsNotNull(connectFromField, nameof(connectFromField));
@@ -808,7 +809,7 @@ namespace MongoDB.Driver
                 from,
                 new ExpressionFieldDefinition<TFrom, TConnectFrom>(connectFromField),
                 new ExpressionFieldDefinition<TFrom, TConnectTo>(connectToField),
-                new ExpressionAggregateExpressionDefinition<TInput, TStartWith>(startWith, translationOptions),
+                new ExpressionAggregateExpressionDefinition<TInput, TStartWith>(startWith),
                 new ExpressionFieldDefinition<TOutput, TAs>(@as),
                 new ExpressionFieldDefinition<TAsElement, int>(depthField),
                 options);
@@ -831,6 +832,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var renderedProjection = group.Render(args);
                     return new RenderedPipelineStageDefinition<TOutput>(operatorName, new BsonDocument(operatorName, renderedProjection.Document), renderedProjection.ProjectionSerializer);
                 });
@@ -858,13 +860,11 @@ namespace MongoDB.Driver
         /// <typeparam name="TOutput">The type of the output documents.</typeparam>
         /// <param name="value">The value field.</param>
         /// <param name="group">The group projection.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         /// <remarks>This method can only be used with LINQ2 but that can't be verified until Render is called.</remarks>
         public static PipelineStageDefinition<TInput, TOutput> Group<TInput, TValue, TOutput>(
             Expression<Func<TInput, TValue>> value,
-            Expression<Func<IGrouping<TValue, TInput>, TOutput>> group,
-            ExpressionTranslationOptions translationOptions = null)
+            Expression<Func<IGrouping<TValue, TInput>, TOutput>> group)
         {
             Ensure.IsNotNull(value, nameof(value));
             Ensure.IsNotNull(group, nameof(group));
@@ -914,6 +914,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var foreignSerializer = options.ForeignSerializer ?? args.GetSerializer<TForeignDocument>();
                     var outputSerializer = options.ResultSerializer ?? args.GetSerializer<TOutput>();
                     return new RenderedPipelineStageDefinition<TOutput>(
@@ -992,6 +993,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var foreignSerializer = options.ForeignSerializer ?? args.GetSerializer<TForeignDocument>();
                     var outputSerializer = options.ResultSerializer ?? args.GetSerializer<TOutput>();
                     var lookupPipelineDocuments = new BsonArray(lookupPipeline.Render(args.WithNewDocumentType(foreignSerializer)).Documents);
@@ -1057,7 +1059,11 @@ namespace MongoDB.Driver
             const string operatorName = "$match";
             var stage = new DelegatedPipelineStageDefinition<TInput, TInput>(
                 operatorName,
-                args => new RenderedPipelineStageDefinition<TInput>(operatorName, new BsonDocument(operatorName, filter.Render(args)), args.DocumentSerializer));
+                args =>
+                {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
+                    return new RenderedPipelineStageDefinition<TInput>(operatorName, new BsonDocument(operatorName, filter.Render(args)), args.DocumentSerializer);
+                });
 
             return stage;
         }
@@ -1115,6 +1121,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var outputSerializer = mergeOptions.OutputSerializer ?? args.GetSerializer<TOutput>();
 
                     var outputCollectionNamespace = outputCollection.CollectionNamespace;
@@ -1188,24 +1195,43 @@ namespace MongoDB.Driver
             IBsonSerializer<TOutput> outputSerializer = null)
                 where TOutput : TInput
         {
-            var discriminatorConvention = BsonSerializer.LookupDiscriminatorConvention(typeof(TOutput));
-            if (discriminatorConvention == null)
-            {
-                var message = string.Format("OfType requires that a discriminator convention exist for type: {0}.", BsonUtils.GetFriendlyTypeName(typeof(TOutput)));
-                throw new NotSupportedException(message);
-            }
-
-            var discriminatorValue = discriminatorConvention.GetDiscriminator(typeof(TInput), typeof(TOutput));
-            var ofTypeFilter = new BsonDocument(discriminatorConvention.ElementName, discriminatorValue);
-
             const string operatorName = "$match";
             var stage = new DelegatedPipelineStageDefinition<TInput, TOutput>(
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
+                    var nominalType = typeof(TInput);
+                    var actualType = typeof(TOutput);
+
+                    AstFilter ofTypeFilter;
+                    if (nominalType == actualType)
+                    {
+                        ofTypeFilter = AstFilter.MatchesEverything();
+                    }
+                    else
+                    {
+                        var inputSerializer = args.DocumentSerializer;
+                        var discriminatorConvention = inputSerializer.GetDiscriminatorConvention();
+                        if (discriminatorConvention == null)
+                        {
+                            var message = string.Format("OfType requires that a discriminator convention exist for type: {0}.", BsonUtils.GetFriendlyTypeName(typeof(TOutput)));
+                            throw new NotSupportedException(message);
+                        }
+
+                        var discriminatorField = new AstFilterField(discriminatorConvention.ElementName, BsonValueSerializer.Instance);
+                        ofTypeFilter = discriminatorConvention switch
+                        {
+                            IHierarchicalDiscriminatorConvention hierarchicalDiscriminatorConvention => DiscriminatorAstFilter.TypeIs(discriminatorField, hierarchicalDiscriminatorConvention, nominalType, actualType),
+                            IScalarDiscriminatorConvention scalarDiscriminatorConvention => DiscriminatorAstFilter.TypeIs(discriminatorField, scalarDiscriminatorConvention, nominalType, actualType),
+                            _ => throw new NotSupportedException( "OfType is not supported with the configured discriminator convention.")
+                        };
+                    }
+                    ofTypeFilter = AstSimplifier.SimplifyAndConvert(ofTypeFilter);
+
                     return new RenderedPipelineStageDefinition<TOutput>(
                         operatorName,
-                        new BsonDocument(operatorName, ofTypeFilter),
+                        new BsonDocument(operatorName, ofTypeFilter.Render()),
                         outputSerializer ?? args.GetSerializer<TOutput>());
                 });
 
@@ -1252,6 +1278,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var renderedProjection = projection.Render(args);
                     IEnumerable<BsonDocument> documents;
                     if (renderedProjection.Document == null)
@@ -1287,14 +1314,12 @@ namespace MongoDB.Driver
         /// <typeparam name="TInput">The type of the input documents.</typeparam>
         /// <typeparam name="TOutput">The type of the output documents.</typeparam>
         /// <param name="projection">The projection.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, TOutput> Project<TInput, TOutput>(
-            Expression<Func<TInput, TOutput>> projection,
-            ExpressionTranslationOptions translationOptions = null)
+            Expression<Func<TInput, TOutput>> projection)
         {
             Ensure.IsNotNull(projection, nameof(projection));
-            return Project(new ExpressionProjectionDefinition<TInput, TOutput>(projection, translationOptions));
+            return Project(new ExpressionProjectionDefinition<TInput, TOutput>(projection));
         }
 
         /// <summary>
@@ -1352,6 +1377,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var renderedSearchDefinition = searchDefinition.Render(args);
                     renderedSearchDefinition.Add("highlight", () => searchOptions.Highlight.Render(args), searchOptions.Highlight != null);
                     renderedSearchDefinition.Add("count", () => searchOptions.CountOptions.Render(), searchOptions.CountOptions != null);
@@ -1388,6 +1414,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var renderedSearchDefinition = searchDefinition.Render(args);
                     renderedSearchDefinition.Add("count", () => count.Render(), count != null);
                     renderedSearchDefinition.Add("index", indexName, indexName != null);
@@ -1419,6 +1446,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var document = new BsonDocument(operatorName, new BsonDocument("newRoot", newRoot.Render(args)));
                     var outputSerializer = args.SerializerRegistry.GetSerializer<TOutput>();
                     return new RenderedPipelineStageDefinition<TOutput>(operatorName, document, outputSerializer);
@@ -1433,14 +1461,12 @@ namespace MongoDB.Driver
         /// <typeparam name="TInput">The type of the input documents.</typeparam>
         /// <typeparam name="TOutput">The type of the output documents.</typeparam>
         /// <param name="newRoot">The new root.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, TOutput> ReplaceRoot<TInput, TOutput>(
-            Expression<Func<TInput, TOutput>> newRoot,
-            ExpressionTranslationOptions translationOptions = null)
+            Expression<Func<TInput, TOutput>> newRoot)
         {
             Ensure.IsNotNull(newRoot, nameof(newRoot));
-            return ReplaceRoot(new ExpressionAggregateExpressionDefinition<TInput, TOutput>(newRoot, translationOptions));
+            return ReplaceRoot(new ExpressionAggregateExpressionDefinition<TInput, TOutput>(newRoot));
         }
 
         /// <summary>
@@ -1460,6 +1486,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var document = new BsonDocument(operatorName, newRoot.Render(args));
                     var outputSerializer = args.SerializerRegistry.GetSerializer<TOutput>();
                     return new RenderedPipelineStageDefinition<TOutput>(operatorName, document, outputSerializer);
@@ -1474,14 +1501,12 @@ namespace MongoDB.Driver
         /// <typeparam name="TInput">The type of the input documents.</typeparam>
         /// <typeparam name="TOutput">The type of the output documents.</typeparam>
         /// <param name="newRoot">The new root.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, TOutput> ReplaceWith<TInput, TOutput>(
-            Expression<Func<TInput, TOutput>> newRoot,
-            ExpressionTranslationOptions translationOptions = null)
+            Expression<Func<TInput, TOutput>> newRoot)
         {
             Ensure.IsNotNull(newRoot, nameof(newRoot));
-            return ReplaceWith(new ExpressionAggregateExpressionDefinition<TInput, TOutput>(newRoot, translationOptions));
+            return ReplaceWith(new ExpressionAggregateExpressionDefinition<TInput, TOutput>(newRoot));
         }
 
         /// <summary>
@@ -1500,6 +1525,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var renderedFields = fields.Render(args);
                     var stage = new BsonDocument(operatorName, renderedFields);
                     return new RenderedPipelineStageDefinition<TInput>(operatorName, stage, args.DocumentSerializer);
@@ -1539,6 +1565,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var partitionSerializer = new ISetWindowFieldsPartitionSerializer<TInput>(args.DocumentSerializer);
                     var document = new BsonDocument
                     {
@@ -1576,6 +1603,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var partitionSerializer = new ISetWindowFieldsPartitionSerializer<TInput>(args.DocumentSerializer);
                     var document = new BsonDocument
                     {
@@ -1617,6 +1645,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var partitionSerializer = new ISetWindowFieldsPartitionSerializer<TInput>(args.DocumentSerializer);
                     var document = new BsonDocument
                     {
@@ -1641,15 +1670,13 @@ namespace MongoDB.Driver
         /// <typeparam name="TInput">The type of the input documents.</typeparam>
         /// <typeparam name="TWindowFields">The type of the added window fields.</typeparam>
         /// <param name="output">The window fields expression.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, BsonDocument> SetWindowFields<TInput, TWindowFields>(
-            Expression<Func<ISetWindowFieldsPartition<TInput>, TWindowFields>> output,
-            ExpressionTranslationOptions translationOptions = null)
+            Expression<Func<ISetWindowFieldsPartition<TInput>, TWindowFields>> output)
         {
             Ensure.IsNotNull(output, nameof(output));
             return SetWindowFields(
-                new ExpressionAggregateExpressionDefinition<ISetWindowFieldsPartition<TInput>, TWindowFields>(output, translationOptions));
+                new ExpressionAggregateExpressionDefinition<ISetWindowFieldsPartition<TInput>, TWindowFields>(output));
         }
 
         /// <summary>
@@ -1660,18 +1687,16 @@ namespace MongoDB.Driver
         /// <typeparam name="TWindowFields">The type of the added window fields.</typeparam>
         /// <param name="partitionBy">The partitionBy expression.</param>
         /// <param name="output">The window fields expression.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, BsonDocument> SetWindowFields<TInput, TPartitionBy, TWindowFields>(
             Expression<Func<TInput, TPartitionBy>> partitionBy,
-            Expression<Func<ISetWindowFieldsPartition<TInput>, TWindowFields>> output,
-            ExpressionTranslationOptions translationOptions = null)
+            Expression<Func<ISetWindowFieldsPartition<TInput>, TWindowFields>> output)
         {
             Ensure.IsNotNull(partitionBy, nameof(partitionBy));
             Ensure.IsNotNull(output, nameof(output));
             return SetWindowFields(
-                new ExpressionAggregateExpressionDefinition<TInput, TPartitionBy>(partitionBy, translationOptions),
-                new ExpressionAggregateExpressionDefinition<ISetWindowFieldsPartition<TInput>, TWindowFields>(output, translationOptions));
+                new ExpressionAggregateExpressionDefinition<TInput, TPartitionBy>(partitionBy),
+                new ExpressionAggregateExpressionDefinition<ISetWindowFieldsPartition<TInput>, TWindowFields>(output));
         }
 
         /// <summary>
@@ -1683,13 +1708,11 @@ namespace MongoDB.Driver
         /// <param name="partitionBy">The partitionBy expression.</param>
         /// <param name="sortBy">The sortBy expression.</param>
         /// <param name="output">The window fields expression.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, BsonDocument> SetWindowFields<TInput, TPartitionBy, TWindowFields>(
             Expression<Func<TInput, TPartitionBy>> partitionBy,
             SortDefinition<TInput> sortBy,
-            Expression<Func<ISetWindowFieldsPartition<TInput>, TWindowFields>> output,
-            ExpressionTranslationOptions translationOptions = null)
+            Expression<Func<ISetWindowFieldsPartition<TInput>, TWindowFields>> output)
         {
             Ensure.IsNotNull(partitionBy, nameof(partitionBy));
             Ensure.IsNotNull(sortBy, nameof(sortBy));
@@ -1698,9 +1721,9 @@ namespace MongoDB.Driver
             var contextData = new TranslationContextData().With("SortBy", sortBy);
 
             return SetWindowFields(
-                new ExpressionAggregateExpressionDefinition<TInput, TPartitionBy>(partitionBy, translationOptions),
+                new ExpressionAggregateExpressionDefinition<TInput, TPartitionBy>(partitionBy),
                 sortBy,
-                new ExpressionAggregateExpressionDefinition<ISetWindowFieldsPartition<TInput>, TWindowFields>(output, translationOptions, contextData));
+                new ExpressionAggregateExpressionDefinition<ISetWindowFieldsPartition<TInput>, TWindowFields>(output, contextData));
         }
 
         /// <summary>
@@ -1759,6 +1782,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var outputSerializer = args.SerializerRegistry.GetSerializer<AggregateSortByCountResult<TValue>>();
                     return new RenderedPipelineStageDefinition<AggregateSortByCountResult<TValue>>(operatorName, new BsonDocument(operatorName, value.Render(args)), outputSerializer);
                 });
@@ -1772,14 +1796,12 @@ namespace MongoDB.Driver
         /// <typeparam name="TInput">The type of the input documents.</typeparam>
         /// <typeparam name="TValue">The type of the values.</typeparam>
         /// <param name="value">The value.</param>
-        /// <param name="translationOptions">The translation options.</param>
         /// <returns>The stage.</returns>
         public static PipelineStageDefinition<TInput, AggregateSortByCountResult<TValue>> SortByCount<TInput, TValue>(
-            Expression<Func<TInput, TValue>> value,
-            ExpressionTranslationOptions translationOptions = null)
+            Expression<Func<TInput, TValue>> value)
         {
             Ensure.IsNotNull(value, nameof(value));
-            return SortByCount(new ExpressionAggregateExpressionDefinition<TInput, TValue>(value, translationOptions));
+            return SortByCount(new ExpressionAggregateExpressionDefinition<TInput, TValue>(value));
         }
 
         /// <summary>
@@ -1805,6 +1827,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     BsonArray withPipelineDocuments;
                     if (withPipeline != null)
                     {
@@ -1848,6 +1871,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var outputSerializer = options.ResultSerializer ?? args.GetSerializer<TOutput>();
 
                     var fieldName = "$" + field.Render(args).FieldName;
@@ -1966,6 +1990,7 @@ namespace MongoDB.Driver
                 operatorName,
                 args =>
                 {
+                    ClientSideProjectionHelper.ThrowIfClientSideProjection(args.DocumentSerializer, operatorName);
                     var vectorSearchOperator = new BsonDocument
                     {
                         { "queryVector", queryVector.Array },
@@ -2010,12 +2035,10 @@ namespace MongoDB.Driver
     internal sealed class ExpressionProjectionDefinition<TInput, TOutput> : ProjectionDefinition<TInput, TOutput>
     {
         private readonly Expression<Func<TInput, TOutput>> _expression;
-        private readonly ExpressionTranslationOptions _translationOptions;
 
-        public ExpressionProjectionDefinition(Expression<Func<TInput, TOutput>> expression, ExpressionTranslationOptions translationOptions)
+        public ExpressionProjectionDefinition(Expression<Func<TInput, TOutput>> expression)
         {
             _expression = Ensure.IsNotNull(expression, nameof(expression));
-            _translationOptions = translationOptions; // can be null
         }
 
         public Expression<Func<TInput, TOutput>> Expression
@@ -2024,8 +2047,8 @@ namespace MongoDB.Driver
         }
 
         public override RenderedProjectionDefinition<TOutput> Render(RenderArgs<TInput> args) => args.RenderForFind ?
-            LinqProviderAdapter.TranslateExpressionToFindProjection(_expression, args.DocumentSerializer, args.SerializerRegistry) :
-            LinqProviderAdapter.TranslateExpressionToProjection(_expression, args.DocumentSerializer, args.SerializerRegistry, _translationOptions);
+            LinqProviderAdapter.TranslateExpressionToFindProjection(_expression, args.DocumentSerializer, args.SerializerRegistry, args.TranslationOptions) :
+            LinqProviderAdapter.TranslateExpressionToProjection(_expression, args.DocumentSerializer, args.SerializerRegistry, args.TranslationOptions);
     }
 
     internal class SortPipelineStageDefinition<TInput> : PipelineStageDefinition<TInput, TInput>

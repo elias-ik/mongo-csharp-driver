@@ -16,28 +16,23 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MongoDB.Driver.Core.Clusters;
 using MongoDB.Driver.Core.Configuration;
 using MongoDB.Driver.Core.Servers;
 using MongoDB.Shared;
 
 namespace MongoDB.Driver
 {
-    internal class ClusterKey
+    internal sealed class ClusterKey
     {
         // fields
         private readonly bool _allowInsecureTls;
         private readonly string _applicationName;
         private readonly Action<ClusterBuilder> _clusterConfigurator;
         private readonly IReadOnlyList<CompressorConfiguration> _compressors;
-#pragma warning disable CS0618 // Type or member is obsolete
-        private readonly ConnectionMode _connectionMode;
-        private readonly ConnectionModeSwitch _connectionModeSwitch;
-#pragma warning restore CS0618 // Type or member is obsolete
         private readonly TimeSpan _connectTimeout;
         private readonly MongoCredential _credential;
         private readonly CryptClientSettings _cryptClientSettings;
-        private readonly bool? _directConnection;
+        private readonly bool _directConnection;
         private readonly int _hashCode;
         private readonly TimeSpan _heartbeatInterval;
         private readonly TimeSpan _heartbeatTimeout;
@@ -54,7 +49,6 @@ namespace MongoDB.Driver
         private readonly int _receiveBufferSize;
         private readonly string _replicaSetName;
         private readonly ConnectionStringScheme _scheme;
-        private readonly string _sdamLogFilename;
         private readonly int _sendBufferSize;
         private readonly ServerApi _serverApi;
         private readonly IReadOnlyList<MongoServerAddress> _servers;
@@ -74,14 +68,10 @@ namespace MongoDB.Driver
             string applicationName,
             Action<ClusterBuilder> clusterConfigurator,
             IReadOnlyList<CompressorConfiguration> compressors,
-#pragma warning disable CS0618 // Type or member is obsolete
-            ConnectionMode connectionMode,
-            ConnectionModeSwitch connectionModeSwitch,
-#pragma warning restore CS0618 // Type or member is obsolete
             TimeSpan connectTimeout,
             MongoCredential credential,
             CryptClientSettings cryptClientSettings,
-            bool? directConnection,
+            bool directConnection,
             TimeSpan heartbeatInterval,
             TimeSpan heartbeatTimeout,
             bool ipv6,
@@ -97,7 +87,6 @@ namespace MongoDB.Driver
             int receiveBufferSize,
             string replicaSetName,
             ConnectionStringScheme scheme,
-            string sdamLogFilename,
             int sendBufferSize,
             ServerApi serverApi,
             IReadOnlyList<MongoServerAddress> servers,
@@ -111,14 +100,10 @@ namespace MongoDB.Driver
             int waitQueueSize,
             TimeSpan waitQueueTimeout)
         {
-            ConnectionModeHelper.EnsureConnectionModeValuesAreValid(connectionMode, connectionModeSwitch, directConnection);
-
             _allowInsecureTls = allowInsecureTls;
             _applicationName = applicationName;
             _clusterConfigurator = clusterConfigurator;
             _compressors = compressors;
-            _connectionMode = connectionMode;
-            _connectionModeSwitch = connectionModeSwitch;
             _connectTimeout = connectTimeout;
             _credential = credential;
             _cryptClientSettings = cryptClientSettings;
@@ -138,7 +123,6 @@ namespace MongoDB.Driver
             _receiveBufferSize = receiveBufferSize;
             _replicaSetName = replicaSetName;
             _scheme = scheme;
-            _sdamLogFilename = sdamLogFilename;
             _sendBufferSize = sendBufferSize;
             _serverApi = serverApi;
             _servers = servers;
@@ -160,36 +144,10 @@ namespace MongoDB.Driver
         public string ApplicationName { get { return _applicationName; } }
         public Action<ClusterBuilder> ClusterConfigurator { get { return _clusterConfigurator; } }
         public IReadOnlyList<CompressorConfiguration> Compressors { get { return _compressors; } }
-        [Obsolete("Use DirectConnection instead.")]
-        public ConnectionMode ConnectionMode
-        {
-            get
-            {
-                if (_connectionModeSwitch == ConnectionModeSwitch.UseDirectConnection)
-                {
-                    throw new InvalidOperationException("ConnectionMode cannot be used when ConnectionModeSwitch is set to UseDirectConnection.");
-                }
-                return _connectionMode;
-            }
-        }
-        [Obsolete("This property will be removed in a later release.")]
-        public ConnectionModeSwitch ConnectionModeSwitch => _connectionModeSwitch;
         public TimeSpan ConnectTimeout { get { return _connectTimeout; } }
         public MongoCredential Credential { get { return _credential; } }
         public CryptClientSettings CryptClientSettings { get { return _cryptClientSettings; } }
-        public bool? DirectConnection
-        {
-            get
-            {
-#pragma warning disable CS0618 // Type or member is obsolete
-                if (_connectionModeSwitch == ConnectionModeSwitch.UseConnectionMode)
-#pragma warning restore CS0618 // Type or member is obsolete
-                {
-                    throw new InvalidOperationException("DirectConnection cannot be used when ConnectionModeSwitch is set to UseConnectionMode.");
-                }
-                return _directConnection;
-            }
-        }
+        public bool DirectConnection { get { return _directConnection; } }
         public TimeSpan HeartbeatInterval { get { return _heartbeatInterval; } }
         public TimeSpan HeartbeatTimeout { get { return _heartbeatTimeout; } }
         public bool IPv6 { get { return _ipv6; } }
@@ -205,7 +163,6 @@ namespace MongoDB.Driver
         public int ReceiveBufferSize { get { return _receiveBufferSize; } }
         public string ReplicaSetName { get { return _replicaSetName; } }
         public ConnectionStringScheme Scheme { get { return _scheme; } }
-        public string SdamLogFilename { get { return _sdamLogFilename; } }
         public int SendBufferSize { get { return _sendBufferSize; } }
         public ServerApi ServerApi { get { return _serverApi; } }
         public IReadOnlyList<MongoServerAddress> Servers { get { return _servers; } }
@@ -242,8 +199,6 @@ namespace MongoDB.Driver
                 _applicationName == rhs._applicationName &&
                 object.ReferenceEquals(_clusterConfigurator, rhs._clusterConfigurator) &&
                 _compressors.SequenceEqual(rhs._compressors) &&
-                _connectionMode == rhs._connectionMode &&
-                _connectionModeSwitch == rhs._connectionModeSwitch &&
                 _connectTimeout == rhs._connectTimeout &&
                 _credential == rhs._credential &&
                 object.Equals(_cryptClientSettings, rhs._cryptClientSettings) &&
@@ -263,7 +218,6 @@ namespace MongoDB.Driver
                 _receiveBufferSize == rhs._receiveBufferSize &&
                 _replicaSetName == rhs._replicaSetName &&
                 _scheme == rhs._scheme &&
-                _sdamLogFilename == rhs._sdamLogFilename &&
                 _sendBufferSize == rhs._sendBufferSize &&
                 _serverApi == rhs._serverApi &&
                 _servers.SequenceEqual(rhs._servers) &&

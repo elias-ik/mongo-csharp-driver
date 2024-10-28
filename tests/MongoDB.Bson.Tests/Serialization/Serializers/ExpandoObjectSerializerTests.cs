@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Dynamic;
 using System.Linq;
 using FluentAssertions;
+using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Bson.TestHelpers;
@@ -41,7 +42,7 @@ namespace MongoDB.Bson.Tests.Serialization
             person.Spouse.FirstName = "Jane";
             person.Spouse.LastName = "McJane";
 
-            var json = ((ExpandoObject)person).ToJson();
+            var json = ((ExpandoObject)person).ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'FirstName' : 'Jack', 'LastName' : 'McJack', 'Hobbies' : [{ 'Name' : 'hiking' }, 10], 'Spouse' : { 'FirstName' : 'Jane', 'LastName' : 'McJane' } }".Replace("'", "\"");
             Assert.Equal(expected, json);
 
@@ -55,7 +56,7 @@ namespace MongoDB.Bson.Tests.Serialization
         {
             var document = new NestedExpando {Id = ObjectId.GenerateNewId(), ExtraData = new ExpandoObject()};
 
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = $"{{ \"_id\" : ObjectId(\"{document.Id}\"), \"ExtraData\" : {{ }} }}";
             Assert.Equal(expected, json);
 
@@ -69,7 +70,7 @@ namespace MongoDB.Bson.Tests.Serialization
         {
             var document = new NestedExpando {Id = ObjectId.GenerateNewId(), ExtraData = null};
 
-            var json = document.ToJson();
+            var json = document.ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = $"{{ \"_id\" : ObjectId(\"{document.Id}\"), \"ExtraData\" : null }}";
             Assert.Equal(expected, json);
 
@@ -91,7 +92,7 @@ namespace MongoDB.Bson.Tests.Serialization
             var oldJson = "{ 'FirstName' : 'Jack', 'LastName' : 'McJack', 'Hobbies' : { '_t' : 'System.Collections.Generic.List`1[System.Object]', '_v' : [{ '_t' : 'System.Dynamic.ExpandoObject', '_v' : { 'Name' : 'hiking' } }, 10] }, 'Spouse' : { '_t' : 'System.Dynamic.ExpandoObject', '_v' : { 'FirstName' : 'Jane', 'LastName' : 'McJane' } } }".Replace("'", "\"");
             var rehydrated = BsonSerializer.Deserialize<ExpandoObject>(oldJson);
 
-            var json = ((ExpandoObject)rehydrated).ToJson();
+            var json = ((ExpandoObject)rehydrated).ToJson(writerSettings: new JsonWriterSettings { OutputMode = JsonOutputMode.Shell });
             var expected = "{ 'FirstName' : 'Jack', 'LastName' : 'McJack', 'Hobbies' : [{ 'Name' : 'hiking' }, 10], 'Spouse' : { 'FirstName' : 'Jane', 'LastName' : 'McJane' } }".Replace("'", "\"");
             Assert.Equal(expected, json);
         }
@@ -100,17 +101,6 @@ namespace MongoDB.Bson.Tests.Serialization
 
     public class ExpandoObjectSerializerTests
     {
-        [Fact]
-        public void Equals_derived_should_return_false()
-        {
-            var x = new ExpandoObjectSerializer();
-            var y = new DerivedFromExpandoObjectSerializer();
-
-            var result = x.Equals(y);
-
-            result.Should().Be(false);
-        }
-
         [Fact]
         public void Equals_null_should_return_false()
         {
@@ -161,10 +151,6 @@ namespace MongoDB.Bson.Tests.Serialization
             var result = x.GetHashCode();
 
             result.Should().Be(0);
-        }
-
-        public class DerivedFromExpandoObjectSerializer : ExpandoObjectSerializer
-        {
         }
     }
 }

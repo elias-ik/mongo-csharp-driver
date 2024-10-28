@@ -25,7 +25,9 @@ namespace MongoDB.Bson.IO
     public class BsonBinaryWriter : BsonWriter
     {
         // private fields
+#pragma warning disable CA2213 // Disposable never disposed
         private readonly Stream _baseStream;
+#pragma warning restore CA2213 // Disposable never disposed
         private readonly BsonStream _bsonStream;
         private BsonBinaryWriterContext _context;
 
@@ -135,25 +137,6 @@ namespace MongoDB.Bson.IO
             _bsonStream.Flush();
         }
 
-        /// <summary>
-        /// Pops the max document size stack, restoring the previous max document size.
-        /// </summary>
-        [Obsolete("Use PopSettings instead.")]
-        public void PopMaxDocumentSize()
-        {
-            PopSettings();
-        }
-
-        /// <summary>
-        /// Pushes a new max document size onto the max document size stack.
-        /// </summary>
-        /// <param name="maxDocumentSize">The maximum size of the document.</param>
-        [Obsolete("Use PushSettings instead.")]
-        public void PushMaxDocumentSize(int maxDocumentSize)
-        {
-            PushSettings(s => ((BsonBinaryWriterSettings)s).MaxDocumentSize = maxDocumentSize);
-        }
-
 #pragma warning disable 618 // about obsolete BsonBinarySubType.OldBinary
         /// <summary>
         /// Writes BSON binary data to the writer.
@@ -169,39 +152,9 @@ namespace MongoDB.Bson.IO
 
             var bytes = binaryData.Bytes;
             var subType = binaryData.SubType;
-            switch (subType)
+            if (subType == BsonBinarySubType.OldBinary && Settings.FixOldBinarySubTypeOnOutput)
             {
-                case BsonBinarySubType.OldBinary:
-                    if (Settings.FixOldBinarySubTypeOnOutput)
-                    {
-                        subType = BsonBinarySubType.Binary; // replace obsolete OldBinary with new Binary sub type
-                    }
-                    break;
-                case BsonBinarySubType.UuidLegacy:
-                case BsonBinarySubType.UuidStandard:
-                    if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-                    {
-                        if (Settings.GuidRepresentation != GuidRepresentation.Unspecified)
-                        {
-                            var expectedSubType = GuidConverter.GetSubType(Settings.GuidRepresentation);
-                            if (subType != expectedSubType)
-                            {
-                                var message = string.Format(
-                                    "The GuidRepresentation for the writer is {0}, which requires the subType argument to be {1}, not {2}.",
-                                    Settings.GuidRepresentation, expectedSubType, subType);
-                                throw new BsonSerializationException(message);
-                            }
-                            var guidRepresentation = binaryData.GuidRepresentation;
-                            if (guidRepresentation != Settings.GuidRepresentation)
-                            {
-                                var message = string.Format(
-                                    "The GuidRepresentation for the writer is {0}, which requires the the guidRepresentation argument to also be {0}, not {1}.",
-                                    Settings.GuidRepresentation, guidRepresentation);
-                                throw new BsonSerializationException(message);
-                            }
-                        }
-                    }
-                    break;
+                subType = BsonBinarySubType.Binary; // replace obsolete OldBinary with new Binary sub type
             }
 
             _bsonStream.WriteBsonType(BsonType.Binary);

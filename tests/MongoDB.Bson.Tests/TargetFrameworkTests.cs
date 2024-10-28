@@ -31,8 +31,8 @@ namespace MongoDB.Bson.Tests
         // private methods
         private string GetExpectedTargetFramework()
         {
-#if NETCOREAPP2_1
-            return "netstandard20";
+#if NET6_0_OR_GREATER
+            return "net60";
 #elif NETCOREAPP3_1_OR_GREATER
             return "netstandard21";
 #elif NET472

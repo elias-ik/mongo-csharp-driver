@@ -25,7 +25,9 @@ namespace MongoDB.Bson.IO
     public class BsonBinaryReader : BsonReader
     {
         // private fields
+#pragma warning disable CA2213 // Disposable never disposed
         private readonly Stream _baseStream;
+#pragma warning restore CA2213 // Disposable never disposed
         private readonly BsonStream _bsonStream;
         private BsonBinaryReaderContext _context;
 
@@ -153,23 +155,13 @@ namespace MongoDB.Bson.IO
             }
 
             var bytes = _bsonStream.ReadBytes(size);
+            if ((subType == BsonBinarySubType.UuidStandard || subType == BsonBinarySubType.UuidLegacy) &&
+                bytes.Length != 16)
+            {
+                throw new FormatException($"Length must be 16, not {bytes.Length}, when subType is {subType}.");
+            }
 
-            BsonBinaryData binaryData;
-            if (BsonDefaults.GuidRepresentationMode == GuidRepresentationMode.V2)
-            {
-                GuidRepresentation guidRepresentation;
-                switch (subType)
-                {
-                    case BsonBinarySubType.UuidLegacy: guidRepresentation = Settings.GuidRepresentation; break;
-                    case BsonBinarySubType.UuidStandard: guidRepresentation = GuidRepresentation.Standard; break;
-                    default: guidRepresentation = GuidRepresentation.Unspecified; break;
-                }
-                binaryData = new BsonBinaryData(bytes, subType, guidRepresentation);
-            }
-            else
-            {
-                binaryData = new BsonBinaryData(bytes, subType);
-            }
+            var binaryData = new BsonBinaryData(bytes, subType);
 
             State = GetNextState();
             return binaryData;

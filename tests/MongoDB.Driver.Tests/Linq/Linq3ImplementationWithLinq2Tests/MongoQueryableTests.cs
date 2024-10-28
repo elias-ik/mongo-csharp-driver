@@ -1849,10 +1849,10 @@ namespace MongoDB.Driver.Tests.Linq.Linq3ImplementationWithLinq2Tests
             }
         }
 
-        private List<T> Assert<T>(IMongoQueryable<T> queryable, int resultCount, params string[] expectedStages)
+        private List<T> Assert<T>(IQueryable<T> queryable, int resultCount, params string[] expectedStages)
         {
             var provider = (MongoQueryProvider<Root>)queryable.Provider;
-            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<Root, T>(provider, queryable.Expression);
+            var executableQuery = ExpressionToExecutableQueryTranslator.Translate<Root, T>(provider, queryable.Expression, translationOptions: null);
 
             var stages = executableQuery.Pipeline.Stages.Select(s => s.Render());
             stages.Should().Equal(expectedStages.Select(x => BsonDocument.Parse(x)));
@@ -1868,17 +1868,17 @@ namespace MongoDB.Driver.Tests.Linq.Linq3ImplementationWithLinq2Tests
             return results;
         }
 
-        private IMongoQueryable<Root> CreateQuery()
+        private IQueryable<Root> CreateQuery()
         {
             return __collection.AsQueryable();
         }
 
-        private IMongoQueryable<Root> CreateQuery(IClientSessionHandle session)
+        private IQueryable<Root> CreateQuery(IClientSessionHandle session)
         {
             return __collection.AsQueryable(session);
         }
 
-        private IMongoQueryable<Other> CreateOtherQuery()
+        private IQueryable<Other> CreateOtherQuery()
         {
             return __otherCollection.AsQueryable();
         }

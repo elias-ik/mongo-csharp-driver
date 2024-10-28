@@ -13,7 +13,6 @@
 * limitations under the License.
 */
 
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,7 +22,7 @@ namespace MongoDB.Bson.Serialization.Serializers
     /// <summary>
     /// Represents a serializer for Stacks.
     /// </summary>
-    public class StackSerializer :
+    public sealed class StackSerializer :
         EnumerableSerializerBase<Stack>,
         IChildSerializerConfigurable,
         IBsonArraySerializer
@@ -121,7 +120,7 @@ namespace MongoDB.Bson.Serialization.Serializers
     /// Represents a serializer for Stacks.
     /// </summary>
     /// <typeparam name="TItem">The type of the elements.</typeparam>
-    public class StackSerializer<TItem> :
+    public sealed class StackSerializer<TItem> :
         EnumerableSerializerBase<Stack<TItem>, TItem>,
         IChildSerializerConfigurable,
         IBsonArraySerializer

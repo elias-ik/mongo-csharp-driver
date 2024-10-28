@@ -78,7 +78,7 @@ namespace MongoDB.Driver.GridFS
             get { return _options; }
         }
 
-        // methods
+        // public methods
         /// <inheritdoc />
         public void Delete(TFileId id, CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -261,7 +261,8 @@ namespace MongoDB.Driver.GridFS
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new GridFSFindOptions<TFileId>();
 
-            var operation = CreateFindOperation(filter, options);
+            var translationOptions = _database.Client.Settings.TranslationOptions;
+            var operation = CreateFindOperation(filter, options, translationOptions);
             using (var binding = GetSingleServerReadBinding(cancellationToken))
             {
                 return operation.Execute(binding, cancellationToken);
@@ -274,7 +275,8 @@ namespace MongoDB.Driver.GridFS
             Ensure.IsNotNull(filter, nameof(filter));
             options = options ?? new GridFSFindOptions<TFileId>();
 
-            var operation = CreateFindOperation(filter, options);
+            var translationOptions = _database.Client.Settings.TranslationOptions;
+            var operation = CreateFindOperation(filter, options, translationOptions);
             using (var binding = await GetSingleServerReadBindingAsync(cancellationToken).ConfigureAwait(false))
             {
                 return await operation.ExecuteAsync(binding, cancellationToken).ConfigureAwait(false);
@@ -577,12 +579,7 @@ namespace MongoDB.Driver.GridFS
 
         private GridFSDownloadStream<TFileId> CreateDownloadStream(IReadBindingHandle binding, GridFSFileInfo<TFileId> fileInfo, GridFSDownloadOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var checkMD5 = options.CheckMD5 ?? false;
             var seekable = options.Seekable ?? false;
-            if (checkMD5 && seekable)
-            {
-                throw new ArgumentException("CheckMD5 can only be used when Seekable is false.");
-            }
 
             if (seekable)
             {
@@ -590,7 +587,7 @@ namespace MongoDB.Driver.GridFS
             }
             else
             {
-                return new GridFSForwardOnlyDownloadStream<TFileId>(this, binding, fileInfo, checkMD5);
+                return new GridFSForwardOnlyDownloadStream<TFileId>(this, binding, fileInfo);
             }
         }
 
@@ -623,11 +620,14 @@ namespace MongoDB.Driver.GridFS
             await operation.ExecuteAsync(binding, cancellationToken).ConfigureAwait(false);
         }
 
-        private FindOperation<GridFSFileInfo<TFileId>> CreateFindOperation(FilterDefinition<GridFSFileInfo<TFileId>> filter, GridFSFindOptions<TFileId> options)
+        private FindOperation<GridFSFileInfo<TFileId>> CreateFindOperation(
+            FilterDefinition<GridFSFileInfo<TFileId>> filter,
+            GridFSFindOptions<TFileId> options,
+            ExpressionTranslationOptions translationOptions)
         {
             var filesCollectionNamespace = this.GetFilesCollectionNamespace();
             var messageEncoderSettings = this.GetMessageEncoderSettings();
-            var args = new RenderArgs<GridFSFileInfo<TFileId>>(_fileInfoSerializer, _options.SerializerRegistry);
+            var args = new RenderArgs<GridFSFileInfo<TFileId>>(_fileInfoSerializer, _options.SerializerRegistry, translationOptions: translationOptions);
             var renderedFilter = filter.Render(args);
             var renderedSort = options.Sort == null ? null : options.Sort.Render(args);
 
@@ -736,11 +736,8 @@ namespace MongoDB.Driver.GridFS
                 id,
                 filename,
                 options.Metadata,
-                options.Aliases,
-                options.ContentType,
                 chunkSizeBytes,
-                batchSize,
-                options.DisableMD5);
+                batchSize);
 #pragma warning restore
         }
 
@@ -776,10 +773,8 @@ namespace MongoDB.Driver.GridFS
 
         private void DownloadToStreamHelper(IReadBindingHandle binding, GridFSFileInfo<TFileId> fileInfo, Stream destination, GridFSDownloadOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var checkMD5 = options.CheckMD5 ?? false;
-
             var retryReads = _database.Client.Settings.RetryReads;
-            using (var source = new GridFSForwardOnlyDownloadStream<TFileId>(this, binding.Fork(), fileInfo, checkMD5) { RetryReads = retryReads })
+            using (var source = new GridFSForwardOnlyDownloadStream<TFileId>(this, binding.Fork(), fileInfo) { RetryReads = retryReads })
             {
                 var count = source.Length;
                 var buffer = new byte[fileInfo.ChunkSizeBytes];
@@ -797,10 +792,8 @@ namespace MongoDB.Driver.GridFS
 
         private async Task DownloadToStreamHelperAsync(IReadBindingHandle binding, GridFSFileInfo<TFileId> fileInfo, Stream destination, GridFSDownloadOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var checkMD5 = options.CheckMD5 ?? false;
-
             var retryReads = _database.Client.Settings.RetryReads;
-            using (var source = new GridFSForwardOnlyDownloadStream<TFileId>(this, binding.Fork(), fileInfo, checkMD5) { RetryReads = retryReads })
+            using (var source = new GridFSForwardOnlyDownloadStream<TFileId>(this, binding.Fork(), fileInfo) { RetryReads = retryReads })
             {
                 var count = source.Length;
                 var buffer = new byte[fileInfo.ChunkSizeBytes];
